@@ -29,7 +29,9 @@
   .overlay{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;
     background:rgba(5,7,15,.86);backdrop-filter:blur(6px);z-index:20;padding:18px;text-align:center}
   .hidden{display:none!important}
-  .panel{max-width:760px;width:100%;max-height:92vh;overflow-y:auto;box-sizing:border-box}
+  .panel{max-width:760px;width:100%;max-height:92vh;overflow-y:auto;box-sizing:border-box;
+    scrollbar-width:none;-ms-overflow-style:none}
+  .panel::-webkit-scrollbar{display:none}
   h1.logo{font-size:30px;margin:0 0 6px;letter-spacing:1px;
     background:linear-gradient(90deg,var(--neon),var(--pink));-webkit-background-clip:text;background-clip:text;color:transparent}
   .sub{color:#9fb0cc;font-size:14px;margin-bottom:16px;line-height:1.7}
@@ -147,6 +149,19 @@
     padding:12px 20px;border-radius:12px;box-shadow:0 12px 34px rgba(0,0,0,.45);
     z-index:60;transition:transform .5s ease;max-width:90vw;text-align:center;font-size:14px;line-height:1.4}
   #toast.show{transform:translateX(-50%) translateY(0)}
+  /* 矮窗口（预览面板/小屏）下压缩结算面板，避免出滚动条 */
+  @media (max-height:560px){
+    .overlay{padding:10px}
+    .panel{max-height:96vh}
+    .overlay h1.logo{font-size:20px!important;margin:0 0 2px!important}
+    .overlay .sub,.overlay .levelClearSub{font-size:12px!important;margin:2px 0 8px!important;line-height:1.5}
+    .vstat{gap:6px;margin:8px auto}
+    .vstat .s{padding:6px 8px}
+    .vstat .s .v{font-size:15px}
+    .vstat .s .l{font-size:10px}
+    .overlay .btn{padding:10px 18px;font-size:14px}
+    .overlay .tree-teaser{font-size:11px!important;margin:6px 0!important}
+  }
 </style>
 </head>
 <body>
@@ -170,7 +185,7 @@
 
 <div id="start" class="overlay">
   <div class="panel">
-    <h1 class="logo">🦝 浣熊垃圾场：幸存者 v6</h1>
+    <h1 class="logo">🦝 浣熊垃圾场：幸存者 v7</h1>
     <div class="sub">霓虹垃圾场里，你是一只边躲边把垃圾甩向追兵的浣熊。<br>
       <b style="color:#cfe">12 关递进</b>，每关更难；<b style="color:#cfe">攒满能量按【空格】一键清屏</b>，连招 tag 互相乘出天文数字。<br>
       死亡不是结束——局外「垃圾币」永久解锁武器与属性，越玩越离谱。</div>
