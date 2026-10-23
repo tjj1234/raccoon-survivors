@@ -1,0 +1,1133 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>浣熊垃圾场：幸存者 v6</title>
+<style>
+  :root{ --neon:#39e0c8; --pink:#ff5da2; --gold:#ffd166; --bg0:#0a0e1a; --bg1:#121a2e; }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent}
+  html,body{margin:0;height:100%;background:#05070f;color:#e8edf7;
+    font-family:-apple-system,"PingFang SC","Microsoft YaHei",system-ui,sans-serif;overflow:hidden}
+  #stage{position:fixed;inset:0;display:flex;align-items:center;justify-content:center}
+  canvas{background:radial-gradient(circle at 50% 40%, #16203a 0%, #0a0e1a 70%, #05070f 100%);
+    touch-action:none;display:block;max-width:100%;max-height:100%}
+  #hud{position:fixed;top:0;left:0;right:0;padding:10px 14px;display:flex;gap:12px;
+    align-items:center;pointer-events:none;font-size:13px;z-index:5;text-shadow:0 1px 2px #000}
+  #hud .pill{background:rgba(10,16,30,.6);border:1px solid rgba(255,255,255,.12);
+    border-radius:10px;padding:5px 10px;backdrop-filter:blur(4px)}
+  #hud b{color:var(--neon);font-variant-numeric:tabular-nums}
+  #bars{flex:1;max-width:300px}
+  #hpwrap{height:12px;background:rgba(255,255,255,.12);border-radius:8px;overflow:hidden}
+  #hp{height:100%;width:100%;background:linear-gradient(90deg,#ff5da2,#ffd166);transition:width .12s}
+  #enwrap{height:9px;background:rgba(255,255,255,.1);border-radius:8px;overflow:hidden;margin-top:5px}
+  #en{height:100%;width:0%;background:linear-gradient(90deg,#9b5cff,#39e0c8);transition:width .08s}
+  #xpwrap{height:9px;background:rgba(255,255,255,.1);border-radius:8px;overflow:hidden;margin-top:5px}
+  #xp{height:100%;width:0%;background:linear-gradient(90deg,#7CFC00,#39e0c8);transition:width .12s}
+  .combo{color:var(--gold)!important;font-weight:700}
+  .str{color:var(--pink)!important;font-weight:700}
+  .overlay{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;
+    background:rgba(5,7,15,.86);backdrop-filter:blur(6px);z-index:20;padding:18px;text-align:center}
+  .hidden{display:none!important}
+  .panel{max-width:760px;width:100%;max-height:92vh;overflow-y:auto;box-sizing:border-box}
+  h1.logo{font-size:30px;margin:0 0 6px;letter-spacing:1px;
+    background:linear-gradient(90deg,var(--neon),var(--pink));-webkit-background-clip:text;background-clip:text;color:transparent}
+  .sub{color:#9fb0cc;font-size:14px;margin-bottom:16px;line-height:1.7}
+  .btn{cursor:pointer;border:none;border-radius:12px;padding:13px 26px;font-size:16px;font-weight:700;
+    color:#06121a;background:linear-gradient(90deg,var(--neon),#5db8ff);box-shadow:0 6px 20px rgba(57,224,200,.3)}
+  .btn:active{transform:translateY(1px)}
+  .btn.alt{background:linear-gradient(90deg,var(--gold),#ff9f43);box-shadow:0 6px 20px rgba(255,209,102,.3)}
+  .keys{font-size:13px;color:#8aa;margin-top:14px;line-height:1.9}
+  .keys kbd{background:#1b2742;border:1px solid #2c3c63;border-bottom-width:2px;border-radius:6px;
+    padding:1px 7px;font-family:inherit;color:#cfe}
+  .diff-row{margin-top:14px;font-size:14px;color:#8aa;display:flex;gap:8px;align-items:center;justify-content:center;flex-wrap:wrap}
+  .dbtn{background:#1b2742;border:1px solid #2c3c63;border-radius:8px;color:#cfe;font-size:15px;
+    padding:6px 16px;cursor:pointer;font-family:inherit;transition:.15s}
+  .dbtn:hover{border-color:var(--neon)}
+  .dbtn.active{background:var(--neon);color:#04201c;border-color:var(--neon);font-weight:700}
+  .dbtn:disabled{opacity:.45;cursor:not-allowed}
+  .diff-hint{font-size:11px;color:#566}
+  #draftCards{display:flex;gap:14px;justify-content:center;flex-wrap:wrap;margin-top:8px}
+  .card{width:180px;min-height:225px;background:linear-gradient(160deg,#1a2440,#101830);
+    border:1px solid #2c3c63;border-radius:16px;padding:16px 14px;cursor:pointer;
+    display:flex;flex-direction:column;align-items:center;text-align:center;transition:.15s;position:relative}
+  .card:hover{transform:translateY(-6px);border-color:var(--neon);box-shadow:0 10px 30px rgba(57,224,200,.25)}
+  .card .emoji{font-size:44px;margin:6px 0 8px;filter:drop-shadow(0 3px 6px #000)}
+  .card .cname{font-weight:700;font-size:15px;margin-bottom:6px}
+  .card .cdesc{font-size:12.5px;color:#aebdD6;line-height:1.55;flex:1}
+  .card .tags{margin-top:8px;display:flex;gap:5px;flex-wrap:wrap;justify-content:center}
+  .card .tag{font-size:10.5px;padding:2px 7px;border-radius:999px;background:#223;color:#9fd}
+  .card .cdetail{font-size:11px;color:#7e90ad;line-height:1.45;margin-top:auto;padding-top:8px;border-top:1px dashed rgba(255,255,255,.1)}
+  .lvtag{position:absolute;top:8px;right:10px;font-size:11px;color:#7fe;opacity:.8}
+  .card .combo-prev{font-size:12px;margin-top:8px;padding:5px 8px;border-radius:8px;background:#0c1830;border:1px solid #244;color:#bcd;line-height:1.35;width:100%;box-sizing:border-box}
+  .card .combo-prev b{color:#5dffd0;font-size:14px}
+  .card .combo-prev.up{background:rgba(57,224,200,.14);border-color:var(--neon);color:#e6fff7}
+  .card .brick-badge{position:absolute;top:8px;left:10px;font-size:10px;padding:2px 7px;border-radius:999px;background:linear-gradient(90deg,var(--gold),#ff9f43);color:#3a2400;font-weight:700;box-shadow:0 2px 6px rgba(0,0,0,.4)}
+  .syn-legend{max-width:560px;margin:14px auto 0;background:#0e1628;border:1px solid #243456;border-radius:12px;padding:10px 14px;text-align:left}
+  .tree-prog{font-size:14px;color:var(--neon);font-weight:700;margin:4px 0 2px}
+  .tier-head{display:flex;justify-content:space-between;align-items:center;max-width:680px;margin:14px auto 7px;padding:5px 12px;border-left:3px solid var(--neon);background:#0e1628;border-radius:8px;font-weight:700;font-size:14px}
+  .tier-head .tier-prog{color:#9fb0cc;font-size:12px;font-weight:600}
+  .tier-row{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;max-width:680px;margin:0 auto 4px}
+  .tree-teaser{font-size:13px;color:#9fd;margin:10px 0 2px;padding:8px 12px;background:#0e1628;border:1px dashed #2c3c63;border-radius:10px;max-width:560px;margin-left:auto;margin-right:auto}
+  .syn-legend .syn-on{color:#5dffd0}
+  .syn-legend .syn-on b{color:#5dffd0}
+  .syn-legend .syn-title{font-size:13px;color:var(--gold);font-weight:700;margin-bottom:6px}
+  .syn-legend .syn-row{font-size:12.5px;color:#cde;margin:4px 0;line-height:1.4}
+  .syn-legend .syn-row b{color:#fff}
+  .syn-legend .syn-note{font-size:11.5px;color:#8aa;margin-top:6px}
+  #goStats{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;max-width:520px;margin:14px auto}
+  #goStats .s{background:#101830;border:1px solid #243456;border-radius:10px;padding:10px}
+  #goStats .s .v{font-size:20px;font-weight:800;color:var(--neon)}
+  #goStats .s .l{font-size:12px;color:#8aa}
+  .syn{color:var(--gold);font-weight:700}
+  /* shop */
+  #shopGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;max-width:680px;margin:14px auto}
+  .upg{position:relative;background:#101830;border:1px solid #243456;border-radius:12px;padding:12px;text-align:center}
+  .upg .ue{font-size:30px}.upg .un{font-weight:700;font-size:13px;margin:4px 0}
+  .upg .ud{font-size:11px;color:#9ab;min-height:30px}
+  .upg .ub{cursor:pointer;margin-top:6px;border:none;border-radius:8px;padding:6px 10px;font-size:12px;font-weight:700;
+    background:linear-gradient(90deg,var(--gold),#ff9f43);color:#06121a}
+  .upg .ub:disabled{opacity:.4;cursor:not-allowed;filter:grayscale(1)}
+  .upg .ulv{font-size:11px;color:#7fe}
+  .upg .uperm{font-size:10.5px;color:var(--gold);margin-top:4px;font-weight:700}
+  .shop-note{max-width:680px;margin:10px auto;background:#0e1628;border:1px solid #243456;border-radius:12px;
+    padding:10px 14px;font-size:12.5px;color:#9fb0cc;line-height:1.6;text-align:left}
+  .shop-note b{color:#cfe}
+  .credit{position:fixed;bottom:8px;right:12px;font-size:11px;color:#445;z-index:4}
+  #hurt{position:fixed;inset:0;pointer-events:none;z-index:15;opacity:0;
+    box-shadow:inset 0 0 150px 45px rgba(255,40,60,.8);transition:opacity .08s}
+  #hurt.show{opacity:1}
+  #flash{position:fixed;inset:0;pointer-events:none;z-index:16;opacity:0;background:#fff;transition:opacity .12s}
+  #flash.show{opacity:.7}
+  #hint{position:fixed;left:50%;top:60px;transform:translateX(-50%);z-index:6;
+    background:rgba(10,16,30,.86);border:1px solid var(--neon);border-radius:12px;
+    padding:10px 18px;font-size:13.5px;color:#dff;text-align:center;line-height:1.7;
+    pointer-events:none;max-width:92vw;transition:opacity .6s;box-shadow:0 6px 24px rgba(0,0,0,.4)}
+  .low{animation:hpPulse .5s infinite}
+  @keyframes hpPulse{0%,100%{box-shadow:0 0 0 0 rgba(255,80,100,0)}50%{box-shadow:0 0 0 5px rgba(255,80,100,.55)}}
+  /* tutorial */
+  #tutorial{z-index:25}
+  .tut-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:14px 0;max-width:680px}
+  .tut-col{background:#101830;border:1px solid #243456;border-radius:14px;padding:12px 14px;text-align:left}
+  .tut-col h3{margin:0 0 8px;font-size:15px;letter-spacing:.5px}
+  .tut-col.eat h3{color:#39e0c8}
+  .tut-col.avoid h3{color:#ff6b6b}
+  .tut-row{display:flex;align-items:center;gap:9px;font-size:13px;color:#cde;margin:7px 0;line-height:1.35}
+  .tut-row .ic{font-size:22px;width:26px;text-align:center;flex:0 0 26px}
+  .tut-row .tx{color:#9fb0cc}
+  .tut-tools{font-size:12.5px;color:#9fb0cc;margin-top:6px;line-height:1.7}
+  .tut-tools b{color:#ffd166}
+  .tut-econ{font-size:12.5px;color:#9fb0cc;margin:12px auto 0;max-width:680px;background:#0e1628;
+    border:1px solid #243456;border-radius:12px;padding:10px 14px;text-align:left;line-height:1.75}
+  .tut-econ b{color:#cfe}
+  /* level banner */
+  #levelBanner{position:fixed;left:50%;top:34%;transform:translate(-50%,-50%);z-index:14;
+    background:rgba(8,12,24,.9);border:2px solid var(--neon);border-radius:18px;
+    padding:18px 34px;text-align:center;pointer-events:none;box-shadow:0 10px 40px rgba(0,0,0,.6);
+    opacity:0;transition:opacity .35s}
+  #levelBanner.show{opacity:1}
+  #levelBanner .lt{font-size:26px;font-weight:800;color:#fff;letter-spacing:1px}
+  #levelBanner .lo{font-size:14px;color:#9fe;margin-top:6px}
+  /* level clear / win */
+  #levelClear,#win{z-index:24}
+  .levelClearSub{color:#9fb0cc;font-size:14px;margin:6px 0 16px}
+  .vstat{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;max-width:520px;margin:14px auto}
+  .vstat .s{background:#101830;border:1px solid #243456;border-radius:10px;padding:10px}
+  .vstat .s .v{font-size:20px;font-weight:800;color:var(--neon)}
+  .vstat .s .l{font-size:12px;color:#8aa}
+  /* 价格通胀反馈：买一项后，其余卡片短暂高亮 + "↑+10%" 角标 */
+  .upg.inflated{animation:bump .9s ease}
+  .upg.inflated .ub{box-shadow:0 0 0 2px #ff5da2 inset}
+  .bumpbadge{position:absolute;top:-9px;right:8px;background:#ff5da2;color:#fff;font-size:11px;
+    padding:2px 7px;border-radius:9px;font-weight:800;box-shadow:0 4px 12px rgba(255,93,162,.5)}
+  @keyframes bump{0%{transform:scale(1)}30%{transform:scale(1.06)}100%{transform:scale(1)}}
+  /* 一次性经济校准公告 toast */
+  #toast{position:fixed;left:50%;top:16px;transform:translateX(-50%) translateY(-160%);
+    background:linear-gradient(90deg,#ff5da2,#ffd166);color:#06121a;font-weight:700;
+    padding:12px 20px;border-radius:12px;box-shadow:0 12px 34px rgba(0,0,0,.45);
+    z-index:60;transition:transform .5s ease;max-width:90vw;text-align:center;font-size:14px;line-height:1.4}
+  #toast.show{transform:translateX(-50%) translateY(0)}
+</style>
+</head>
+<body>
+<div id="stage"><canvas id="cv"></canvas></div>
+
+<div id="hud" class="hidden">
+  <div class="pill" id="hLevel" style="color:var(--gold)">关 1/6</div>
+  <div class="pill">⏱ <b id="hTime">0:00</b></div>
+  <div class="pill">Lv <b id="hLv">1</b></div>
+  <div class="pill">💀 <b id="hKills">0</b></div>
+  <div class="pill combo">连携 <b id="hCombo">x1.0</b></div>
+  <div class="pill str">连杀 <b id="hStr">0</b></div>
+  <div id="bars">
+    <div id="hpwrap"><div id="hp"></div></div>
+    <div id="xpwrap"><div id="xp"></div></div>
+    <div id="enwrap"><div id="en"></div></div>
+  </div>
+  <div class="pill">DPS <b id="hDps">0</b></div>
+  <div class="pill" id="hSound" style="pointer-events:auto;cursor:pointer">🔊</div>
+</div>
+
+<div id="start" class="overlay">
+  <div class="panel">
+    <h1 class="logo">🦝 浣熊垃圾场：幸存者 v6</h1>
+    <div class="sub">霓虹垃圾场里，你是一只边躲边把垃圾甩向追兵的浣熊。<br>
+      <b style="color:#cfe">12 关递进</b>，每关更难；<b style="color:#cfe">攒满能量按【空格】一键清屏</b>，连招 tag 互相乘出天文数字。<br>
+      死亡不是结束——局外「垃圾币」永久解锁武器与属性，越玩越离谱。</div>
+    <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap">
+      <button class="btn" id="btnStart">开始生存</button>
+      <button class="btn alt" id="btnTutorial">📖 新手教程</button>
+      <button class="btn alt" id="btnShop">🌳 成长树</button>
+    </div>
+    <div id="diffRow" class="diff-row">难度：
+      <button class="dbtn" data-d="1">I</button>
+      <button class="dbtn" data-d="2">II 🔒</button>
+      <button class="dbtn" data-d="3">III 🔒</button>
+      <span class="diff-hint">通关解锁更高难度（掉落更多垃圾币）</span>
+    </div>
+    <div class="keys">
+      <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> / 方向键 或 按住鼠标 移动 ·
+      <kbd>空格</kbd> 放大招 · <kbd>P</kbd> 暂停<br>
+      攻击全自动 · 闯过 12 关即通关 · 死亡即重开，永久成长
+    </div>
+  </div>
+</div>
+
+<!-- ===== Tutorial ===== -->
+<div id="tutorial" class="overlay">
+  <div class="panel">
+    <h1 class="logo" style="font-size:26px">📖 怎么玩（30 秒看懂）</h1>
+    <div class="sub">浣熊<b style="color:#cfe">自动开火</b>，你只负责<b style="color:#ffd166">移动躲怪</b>。看懂下面两类，立刻能上手：</div>
+    <div class="tut-grid">
+      <div class="tut-col eat">
+        <h3>🟢 捡这些（对你有好处）</h3>
+        <div class="tut-row"><span class="ic">🔷</span><span><b>青宝石</b> — 自动吸附，攒满就<b>升级抽连招卡</b></span></div>
+        <div class="tut-row"><span class="ic">💚</span><span><b>爱心</b> — 回血 20，残血时救命</span></div>
+        <div class="tut-row"><span class="ic">✨</span><span><b>能量</b> — 杀敌自动攒，满了按<b>空格清屏</b></span></div>
+      </div>
+      <div class="tut-col avoid">
+        <h3>🔴 躲这些（碰到掉血）</h3>
+        <div class="tut-row"><span class="ic">🐀</span><span><b>老鼠</b> — 快而脆，最常见</span></div>
+        <div class="tut-row"><span class="ic">🤖</span><span><b>机器人</b> — 慢但肉，硬扛</span></div>
+        <div class="tut-row"><span class="ic">🟢</span><span><b>分裂怪</b> — 打死裂成两只小的</span></div>
+        <div class="tut-row"><span class="ic">🔫</span><span><b>远程怪</b> — 远远放红弹，走位躲</span></div>
+        <div class="tut-row"><span class="ic">💣</span><span><b>自爆怪</b> — 冲脸爆炸，别让它贴身</span></div>
+        <div class="tut-row"><span class="ic">🦇</span><span><b>蝙蝠</b> — 飞得快，追得上你</span></div>
+        <div class="tut-row"><span class="ic">🐉</span><span><b>垃圾龙</b> — 每关尽头 Boss，血厚</span></div>
+      </div>
+    </div>
+    <div class="tut-econ">
+      💎 <b>两种货币别搞混：</b><br>
+      🔷 <b>青宝石</b> = <b>局内</b>升级货币。打怪必掉，走过去捡了才升级抽卡——<b>只在本局有效</b>，死了清空。<br>
+      🪙 <b>垃圾币</b> = <b>局外</b>货币。每局结束按表现结算（时间/击杀/等级/Boss），花在首页「🗑️ 仓库」<b>永久解锁</b>武器或属性——<b>买一次、跨局保留</b>，跨局不清空。
+    </div>
+    <div class="tut-tools">
+      🦝 <b>你</b>（自动开火）· <kbd>WASD</kbd>/鼠标 移动 · <kbd>空格</kbd> 清屏大招 · 升级<b>抽卡</b>叠 tag 连携乘数<br>
+      目标：<b>闯过 12 关</b>。每关撑过倒计时（第 3/6/9/12 关打死龙）即过关，关间回血 30。
+    </div>
+    <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-top:16px">
+      <button class="btn" id="btnTutStart">明白了，开干！</button>
+      <button class="btn alt" id="btnTutClose">先回首页</button>
+    </div>
+  </div>
+</div>
+
+<div id="draft" class="overlay hidden">
+  <div class="panel">
+    <h1 class="logo" style="font-size:24px">⬆️ 升级！选一张卡</h1>
+    <div class="sub" id="draftHint">点一张卡强化自己 · 下方「连携配方」告诉你 tag 怎么组合才爆炸</div>
+    <div id="draftCards"></div>
+    <div class="syn-legend" id="synLegend"></div>
+  </div>
+</div>
+
+<div id="gameover" class="overlay hidden">
+  <div class="panel">
+    <h1 class="logo" style="font-size:28px">💥 被垃圾掩埋了</h1>
+    <div class="sub" id="goMsg"></div>
+    <div id="goStats"></div>
+    <div id="goTree" class="tree-teaser"></div>
+    <button class="btn alt" id="btnShop2">🌳 成长树 · 用垃圾币升级</button>
+    <br><br>
+    <button class="btn" id="btnRetry">再开一局</button>
+  </div>
+</div>
+
+<div id="shop" class="overlay hidden" style="z-index:30">
+  <div class="panel">
+    <h1 class="logo" style="font-size:26px">🌳 成长树 · 垃圾场仓库</h1>
+    <div class="sub">垃圾币：<b id="shopCoins" style="color:var(--gold)">0</b> 🪙 ·
+      <b style="color:#cfe">买一次、永久保存</b>，跨局保留</div>
+    <div id="treeProg" class="tree-prog"></div>
+    <div class="shop-note">💡 <b>两种货币别搞混：</b>🔷 青宝石 = <b>局内</b>升级（捡了才抽卡，这局有效，死了清空）；🪙 垃圾币 = <b>局外</b>货币（每局结束结算，花在这里<b>永久解锁</b>武器/属性）。每买一项，全场价格 +10%，越买越贵。点「🧹 免费重洗」可全额退还、清空所有节点，放心试错。</div>
+    <div id="shopGrid"></div>
+    <br>
+    <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap">
+      <button class="btn alt" id="btnRespec">🧹 免费重洗</button>
+      <button class="btn" id="btnShopPlay">开始生存</button>
+      <button class="btn alt" id="btnShopBack">返回首页</button>
+    </div>
+  </div>
+</div>
+
+<div id="levelBanner"><div class="lt"></div><div class="lo"></div></div>
+
+<div id="levelClear" class="overlay hidden">
+  <div class="panel">
+    <h1 class="logo" style="font-size:30px">✅ 过关！</h1>
+    <div class="levelClearSub" id="lcSub"></div>
+    <div class="vstat" id="lcStats"></div>
+    <button class="btn" id="btnNextLevel">进入下一关 →</button>
+  </div>
+</div>
+
+<div id="win" class="overlay hidden">
+  <div class="panel">
+    <h1 class="logo" style="font-size:32px">🏆 通关！垃圾场清干净了</h1>
+    <div class="levelClearSub" id="winMsg"></div>
+    <div class="vstat" id="winStats"></div>
+    <div id="winTree" class="tree-teaser"></div>
+    <button class="btn alt" id="btnWinShop">🌳 成长树 · 用垃圾币升级</button>
+    <br><br>
+    <button class="btn" id="btnWinRetry">再玩一次</button>
+  </div>
+</div>
+
+<div class="credit">🦝 阿伴出品 · 单文件原型 v6</div>
+<div id="hurt"></div>
+<div id="flash"></div>
+<div id="toast"></div>
+<div id="hint" class="hidden">🦝 <b>WASD</b>/方向键 或 <b>按住鼠标</b> 移动！躲开追兵 · 杀敌攒能量 · <b>空格清屏</b></div>
+
+<script>
+"use strict";
+(function(){
+const cv = document.getElementById('cv');
+const ctx = cv.getContext('2d');
+let W=900, H=600, DPR=1;
+function resize(){
+  const maxW = Math.min(window.innerWidth, 1100);
+  const maxH = Math.min(window.innerHeight, 720);
+  let w = maxW, h = w*2/3;
+  if(h>maxH){ h=maxH; w=h*3/2; }
+  W = Math.round(w); H = Math.round(h);
+  DPR = Math.min(window.devicePixelRatio||1, 2);
+  cv.style.width = W+'px'; cv.style.height = H+'px';
+  cv.width = Math.round(W*DPR); cv.height = Math.round(H*DPR);
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+}
+window.addEventListener('resize', resize); resize();
+
+// ---------- Audio ----------
+let actx=null, soundOn=true;
+function audio(){ if(!actx){ try{ actx=new (window.AudioContext||window.webkitAudioContext)(); }catch(e){} } return actx; }
+function beep(freq, dur, type, vol){
+  if(!soundOn) return; const a=audio(); if(!a) return;
+  const o=a.createOscillator(), g=a.createGain();
+  o.type=type||'square'; o.frequency.value=freq;
+  g.gain.value=0; o.connect(g); g.connect(a.destination);
+  const t=a.currentTime;
+  g.gain.linearRampToValueAtTime(vol||0.06, t+0.01);
+  g.gain.exponentialRampToValueAtTime(0.0001, t+(dur||0.12));
+  o.start(t); o.stop(t+(dur||0.12)+0.02);
+}
+function sShoot(){ beep(620,0.05,'square',0.02); }
+function sHit(){ beep(240,0.05,'sawtooth',0.025); }
+function sLevel(){ beep(523,0.12,'triangle',0.07); setTimeout(()=>beep(784,0.16,'triangle',0.07),90); }
+function sHurt(){ beep(150,0.18,'sawtooth',0.09); }
+function sPick(){ beep(900,0.04,'sine',0.03); }
+function sUlt(){ beep(120,0.4,'sawtooth',0.12); setTimeout(()=>beep(60,0.5,'sine',0.12),60); }
+function sStreak(n){ beep(500+n*40,0.06,'triangle',0.05); }
+
+// ---------- Input ----------
+const keys={};
+addEventListener('keydown',e=>{ keys[e.key.toLowerCase()]=true;
+  if(e.key==='p'||e.key==='P'||e.key==='Escape'){ togglePause(); }
+  if(e.key===' '){ e.preventDefault(); tryUlt(); } });
+addEventListener('keyup',e=>{ keys[e.key.toLowerCase()]=false; });
+let pointer={down:false,x:0,y:0};
+function setPtr(e){ const r=cv.getBoundingClientRect();
+  const t=e.touches?e.touches[0]:e; pointer.x=(t.clientX-r.left); pointer.y=(t.clientY-r.top); }
+cv.addEventListener('pointerdown',e=>{ pointer.down=true; setPtr(e); });
+cv.addEventListener('pointermove',e=>{ setPtr(e); });
+addEventListener('pointerup',()=>{ pointer.down=false; });
+
+// ---------- Meta (persistent) ----------
+const META = (function(){
+  let coins = +(localStorage.getItem('rr_coins')||0) || 0;
+  let upg = {}; try{ upg = JSON.parse(localStorage.getItem('rr_upg')||'{}')||{}; }catch(e){ upg={}; }
+  let unlockedDiff = +(localStorage.getItem('rr_diff')||1) || 1; if(unlockedDiff<1)unlockedDiff=1; if(unlockedDiff>3)unlockedDiff=3;
+  let spent = +(localStorage.getItem('rr_spent')||0) || 0;
+  const saved = { coins, upg, unlockedDiff, spent, save(){ localStorage.setItem('rr_coins', this.coins);
+    localStorage.setItem('rr_upg', JSON.stringify(this.upg));
+    localStorage.setItem('rr_diff', this.unlockedDiff);
+    localStorage.setItem('rr_spent', this.spent); } };
+  // 一次性经济校准（v6）：连杀爆币遗留的超标存款充公——垃圾场环保稽查，仅执行一次。
+  let wealthReset=false; const CAP=50000;
+  if(localStorage.getItem('rr_reset')!=='1'){
+    if(coins>CAP){ coins=CAP; wealthReset=true; }
+    localStorage.setItem('rr_reset','1'); saved.coins=coins; saved.save();
+  }
+  saved.wealthReset=wealthReset;
+  return saved;
+})();
+// 难度档：hp/dmg 缩放怪的强度；coin 缩放垃圾币掉落。通关解锁下一档。
+const DIFFS=[
+  {name:'I',   hp:1.0, dmg:1.0, coin:1.0},
+  {name:'II',  hp:1.8, dmg:1.8, coin:2.0},
+  {name:'III', hp:3.0, dmg:3.0, coin:4.0},
+];
+const UPG = [
+  // —— 属性（小幅百分比，永久）——
+  {id:'vit', name:'铁皮胃袋', emoji:'🥫', desc:'起始最大生命 +20', max:10, base:40},
+  {id:'pow', name:'重锤肌肉', emoji:'🔨', desc:'起始伤害 +10%', max:10, base:50},
+  {id:'spd', name:'涡轮脚爪', emoji:'🛼', desc:'起始移动 +4%', max:8, base:40},
+  {id:'erc', name:'电容核心', emoji:'🔋', desc:'能量获取 +15%', max:8, base:40},
+  {id:'gre', name:'贪婪之心', emoji:'💰', desc:'垃圾币结算 +8%', max:8, base:60},
+  {id:'cmb', name:'连携核心', emoji:'🔗', desc:'连携乘数基础 +5%', max:6, base:80},
+  {id:'crt', name:'暴击齿轮', emoji:'🎯', desc:'暴击率 +3%', max:6, base:70},
+  {id:'arm', name:'老兵护甲', emoji:'🛡️', desc:'受到伤害 -1', max:5, base:200},
+  {id:'amt', name:'弹丸仓库', emoji:'📦', desc:'主武器弹丸 +1（最贵最香）', max:2, base:500},
+  // —— 武器（解锁后，按「起始武器槽」数量携带，不自动全带）——
+  {id:'w_orbit', name:'环绕齿轮', emoji:'🪐', desc:'解锁起始环绕武器', max:1, base:150, weapon:true},
+  {id:'w_beam', name:'激光目镜', emoji:'🔆', desc:'解锁起始激光武器', max:1, base:170, weapon:true},
+  {id:'w_shotgun', name:'散射改装', emoji:'🔫', desc:'解锁起始霰弹武器', max:1, base:150, weapon:true},
+  {id:'w_summon', name:'伙伴项圈', emoji:'🐾', desc:'解锁起始召唤武器', max:1, base:180, weapon:true},
+  // —— 配装 / 消耗 ——
+  {id:'slot', name:'武器挂架', emoji:'🎒', desc:'起始可携带武器 +1（最多带 3 把）', max:2, base:320},
+  {id:'revival', name:'复活项圈', emoji:'💖', desc:'每局复活 +1 次（满血清场）', max:3, base:400},
+];
+// 全局通胀：已拥有的总等级越高，所有升级越贵（对标 VS「买一级全场涨 10%」）。
+function ownedLevels(){ let n=0; for(const u of UPG){ n += (META.upg[u.id]||0); } return n; }
+function upgCost(u){ const lv = META.upg[u.id]||0; return Math.floor(u.base * Math.pow(1.6, lv) * (1 + 0.10*ownedLevels())); }
+function buyUpgrade(id){
+  const u = UPG.find(x=>x.id===id); if(!u) return;
+  const lv = META.upg[id]||0; if(lv>=u.max) return;
+  const c = upgCost(u); if(META.coins < c) return;
+  META.coins -= c; META.upg[id]=lv+1; META.spent=(META.spent||0)+c; META.save();
+  lastBuyId=id; renderShop(); // 标记本次购买，让其余卡片闪"↑+10%"通胀提示
+  setTimeout(()=>{ lastBuyId=null; if(!document.getElementById('shop').classList.contains('hidden')) renderShop(); }, 1000);
+}
+// 成长树分层：把 15 个永久解锁项按「根基 / 武器 / 配装」分带，让局外成长从扁平网格变成可见的「树」。
+const TIERS=[
+  {name:'🌱 根基（永久属性）', ids:['vit','pow','spd','erc','gre','cmb','crt','arm','amt']},
+  {name:'⚔️ 武器（永久解锁）', ids:['w_orbit','w_beam','w_shotgun','w_summon']},
+  {name:'🎒 配装（携带 / 复活）', ids:['slot','revival']},
+];
+function treeLit(ids){ let n=0; for(const id of ids) n+=(META.upg[id]||0); return n; }
+function treeMax(ids){ let n=0; for(const id of ids) n+=UPG.find(u=>u.id===id).max; return n; }
+// 免费重洗：把累计花掉的垃圾币全退回来、清空所有永久升级（演示期全免费，让玩家放心试错）。
+function respecMeta(){
+  const refund=META.spent||0;
+  META.coins += refund;
+  META.upg = {}; META.spent = 0; META.save();
+  if(!document.getElementById('shop').classList.contains('hidden')) renderShop();
+  showToast('🧹 已免费重洗：退还 '+refund+' 🪙，所有永久升级清空。放心再点！', 3200);
+}
+
+// ---------- Game State ----------
+const PHASE={START:0,PLAY:1,DRAFT:2,PAUSE:3,OVER:4,LEVELCLEAR:5};
+let phase=PHASE.START;
+let G=null;
+
+// 12 关递进：普通关 = 撑过 dur 秒；Boss 关(第3/6/9/12) = 打死垃圾龙。难度逐关加码。
+const LEVELS=[
+  {name:'第一关 · 垃圾初醒', dur:35, hp:1.0, dmg:1.0,  rate:0.95, maxE:70,  types:['rat','bat']},
+  {name:'第二关 · 铁罐来袭', dur:42, hp:1.3, dmg:1.15, rate:0.8,  maxE:100, types:['rat','bat','bot']},
+  {name:'第三关 · 分裂危机', dur:48, hp:1.7, dmg:1.3,  rate:0.7,  maxE:130, types:['rat','bat','bot','split'], boss:true},
+  {name:'第四关 · 远程封锁', dur:50, hp:2.1, dmg:1.45, rate:0.62, maxE:160, types:['rat','bat','bot','split','shooter']},
+  {name:'第五关 · 自爆风暴', dur:54, hp:2.6, dmg:1.6,  rate:0.55, maxE:190, types:['rat','bat','bot','split','shooter','bomber']},
+  {name:'第六关 · 垃圾龙',   dur:58, hp:3.2, dmg:1.8,  rate:0.5,  maxE:210, types:['rat','bat','bot','split','shooter','bomber'], boss:true},
+  {name:'第七关 · 混战地狱', dur:60, hp:3.8, dmg:2.0,  rate:0.48, maxE:230, types:['rat','bat','bot','split','shooter','bomber']},
+  {name:'第八关 · 钢铁洪流', dur:64, hp:4.4, dmg:2.2,  rate:0.45, maxE:250, types:['rat','bat','bot','split','shooter','bomber']},
+  {name:'第九关 · 双子垃圾龙', dur:66, hp:5.2, dmg:2.5, rate:0.42, maxE:230, types:['rat','bat','bot','split','shooter','bomber'], boss:true},
+  {name:'第十关 · 弹幕炼狱', dur:70, hp:6.0, dmg:2.8,  rate:0.4,  maxE:260, types:['rat','bat','bot','split','shooter','bomber']},
+  {name:'第十一关 · 终极混战', dur:74, hp:6.8, dmg:3.0, rate:0.38, maxE:280, types:['rat','bat','bot','split','shooter','bomber']},
+  {name:'第十二关 · 垃圾龙王', dur:80, hp:8.0, dmg:3.4, rate:0.36, maxE:270, types:['rat','bat','bot','split','shooter','bomber'], boss:true},
+];
+
+function newGame(){
+  const vit=META.upg.vit||0, pow=META.upg.pow||0, spd=META.upg.spd||0, erc=META.upg.erc||0;
+  const gre=META.upg.gre||0, cmb=META.upg.cmb||0, crt=META.upg.crt||0, arm=META.upg.arm||0, amt=META.upg.amt||0;
+  const maxhp = 100 + vit*20;
+  // 武器槽位配装：基础 1 把(shot)，每级「武器挂架」多带 1 把已解锁武器（最多 3 把，永远不能全带）。
+  const slotLv = META.upg.slot||0;
+  const totalSlots = 1 + slotLv;
+  const weapons = ['shot'];
+  const order=['w_orbit','w_beam','w_shotgun','w_summon'];
+  for(const id of order){ if(weapons.length>=totalSlots) break; if(META.upg[id]) weapons.push(id.replace('w_','')); }
+  return {
+    t:0, kills:0, level:1, xp:0, xpNext:5, bossKills:0, maxStreak:0,
+    lvlIdx:0, lt:0, levelDef:LEVELS[0], levelReached:1,
+    diff:1, diffMul:1, coinMul:1, revives:META.upg.revival||0,
+    player:{ x:W/2, y:H/2, r:16, hp:maxhp, maxhp, speed:210*(1+0.04*spd),
+      dmg:10*(1+0.10*pow), fireRate:2.0, proj:1+amt, pierce:0, crit:0.05+0.03*crt, critMul:2.0, armor:arm,
+      aoe:0, lifesteal:0, magnet:140, dmgMult:1, fireMult:1, comboMult:1+0.05*cmb, coinMult:1+0.08*gre,
+      energy:0, energyGain:1+0.15*erc, slowT:0, invuln:0, weapons, orbs:3, summons:1 },
+    enemies:[], shots:[], gems:[], heals:[], parts:[], texts:[], ebullets:[], allies:[], beams:[],
+    fireCd:0, spawnCd:0, bossAlive:false, bossSpawned:false, bossDead:false, bossProbe:0, bossProbeDmg:0, bossProbeDur:2.0, bossRespawnT:0,
+    shake:0, dpsAcc:0, dpsTime:0, dps:0, dpsPeak:0, dpsBuf:[], cardLevels:{}, pendingLevels:0,
+    streak:0, streakT:0, ws:{}, best: +(localStorage.getItem('rr_best')||0)
+  };
+}
+
+// ---------- Card pool ----------
+const CARDS=[
+  {id:'dmg', name:'重锤垃圾', emoji:'🔨', tags:['重击'], repeatable:true, desc:'基础伤害 +35%', detail:'子弹/武器直接伤害 ×1.35，可重复拿叠加', apply:p=>{ p.dmg*=1.35; }},
+  {id:'rate', name:'变速齿轮', emoji:'⚙️', tags:['疾速'], repeatable:true, desc:'攻击频率 +25%', detail:'开火更快，单位时间打出更多子弹', apply:p=>{ p.fireMult*=1.25; }},
+  {id:'multi', name:'成堆破烂', emoji:'📦', tags:['重击'], repeatable:true, desc:'全局伤害 ×1.2', detail:'所有来源伤害再乘 1.2，和重锤叠加更猛', apply:p=>{ p.dmgMult*=1.2; }},
+  {id:'proj', name:'三连投掷', emoji:'🎯', tags:['连锁'], repeatable:true, desc:'弹丸 +1', detail:'主武器一次多射一发，直线清怪更快', apply:p=>{ p.proj+=1; }},
+  {id:'pierce', name:'穿甲钉', emoji:'📌', tags:['重击','连锁'], repeatable:true, desc:'穿透 +1', detail:'子弹可多穿过 1 个敌人继续打', apply:p=>{ p.pierce+=1; }},
+  {id:'crit', name:'暴击电池', emoji:'⚡', tags:['火花'], repeatable:true, desc:'暴击率 +12% · 暴击 ×1.5', detail:'有概率打出黄字爆击，伤害翻 1.5 倍', apply:p=>{ p.crit=Math.min(0.85,p.crit+0.12); p.critMul+=0.5; }},
+  {id:'spark', name:'电弧喷罐', emoji:'🔥', tags:['火花'], repeatable:false, desc:'获得【火花】tag', detail:'连携积木：+火花 可配 易燃(燃烧)/疾速(过载)', apply:p=>{} },
+  {id:'burn', name:'易燃废料', emoji:'🧨', tags:['易燃'], repeatable:false, desc:'获得【易燃】tag', detail:'连携积木：+易燃 与 火花 组合 = 燃烧 ×1.35', apply:p=>{} },
+  {id:'toxin', name:'毒雾罐', emoji:'☣️', tags:['剧毒'], repeatable:false, desc:'获得【剧毒】tag', detail:'连携积木：+剧毒 与 连锁 组合 = 瘟疫 ×1.25', apply:p=>{} },
+  {id:'chain', name:'连锁线圈', emoji:'🔗', tags:['连锁'], repeatable:false, desc:'获得【连锁】tag', detail:'连携积木：+连锁 与 剧毒 组合 = 瘟疫', apply:p=>{} },
+  {id:'aoe', name:'爆炸桶', emoji:'💥', tags:['火花','重击'], repeatable:true, desc:'命中产生爆炸', detail:'子弹命中时范围 +30，额外炸伤周围敌人', apply:p=>{ p.aoe+=30; }},
+  {id:'hp', name:'铁皮罐头', emoji:'🥫', tags:['护盾'], repeatable:true, desc:'最大生命 +30 并回满', detail:'血上限 +30 且立刻回满，残血救命', apply:p=>{ p.maxhp+=30; p.hp=p.maxhp; }},
+  {id:'leech', name:'回收胃袋', emoji:'🩸', tags:['剧毒'], repeatable:true, desc:'每击杀回血 +2', detail:'每次击杀自动回 2 血，续航神器', apply:p=>{ p.lifesteal+=2; }},
+  {id:'magnet', name:'磁吸天线', emoji:'🧲', tags:['磁力'], repeatable:true, desc:'拾取范围 +60', detail:'宝石/爱心吸附范围更大，升级更快', apply:p=>{ p.magnet+=60; }},
+  {id:'haste', name:'涡轮脚爪', emoji:'🛼', tags:['疾速'], repeatable:true, desc:'移动速度 +12%', detail:'跑得更快，更好躲怪', apply:p=>{ p.speed*=1.12; }},
+  {id:'ward', name:'护盾发生器', emoji:'🛡️', tags:['护盾','重击'], repeatable:true, desc:'受伤后短无敌 + 穿透 +1', detail:'被打后短暂无敌，并永久 +1 穿透', apply:p=>{ p.pierce+=1; }},
+  {id:'w_orbit_c', name:'环绕齿轮', emoji:'🪐', tags:['磁力'], repeatable:true, desc:'获得环绕武器', detail:'身边 3 个齿轮持续旋转伤害，近身怪克星（本局有效）', apply:p=>{ addWeapon('orbit'); }},
+  {id:'w_beam_c', name:'激光目镜', emoji:'🔆', tags:['火花'], repeatable:true, desc:'获得激光武器', detail:'每 ~0.9s 发射一道穿透激光，直线清场（本局有效）', apply:p=>{ addWeapon('beam'); }},
+  {id:'w_shotgun_c', name:'散射改装', emoji:'🔫', tags:['连锁'], repeatable:true, desc:'获得霰弹武器', detail:'一次 5 发扇形，近身爆发极高（本局有效）', apply:p=>{ addWeapon('shotgun'); }},
+  {id:'w_summon_c', name:'伙伴项圈', emoji:'🐾', tags:['护盾'], repeatable:true, desc:'获得召唤武器', detail:'召唤 🐾 助手自动追怪射击（本局有效）', apply:p=>{ addWeapon('summon'); }},
+];
+const TAG_EMOJI={ '火花':'🔥','易燃':'🧨','剧毒':'☣️','重击':'🔨','连锁':'🔗','疾速':'💨','护盾':'🛡️','磁力':'🧲' };
+function addWeapon(key){ const p=G.player; if(!p.weapons.includes(key)) p.weapons.push(key);
+  if(!G.ws[key]) G.ws[key]={cd:0,ang:0}; }
+
+function activeTags(){
+  const set=new Set();
+  for(const id in G.cardLevels){ const c=CARDS.find(c=>c.id===id); if(c) c.tags.forEach(t=>set.add(t)); }
+  return set;
+}
+// 连携配方：单一数据源，游戏逻辑（recombo）与抽卡图例（openDraft）共用，杜绝数值漂移
+const SYN_PAIRS=[
+  {a:'火花',b:'易燃',label:'燃烧',mult:2.0,fx:'',emoji:'🔥'},
+  {a:'剧毒',b:'连锁',label:'瘟疫',mult:1.8,fx:'+穿透1',emoji:'☣️'},
+  {a:'重击',b:'护盾',label:'反震',mult:1.6,fx:'+穿透1',emoji:'🔨'},
+  {a:'疾速',b:'火花',label:'过载',mult:1.5,fx:'攻速×1.3',emoji:'💨'},
+];
+const TAG_GLOBAL_BONUS=0.15; // 每多 1 个 tag，全局伤害额外 +15%
+function recombo(){
+  const tags=activeTags(); const s=G.player; let m=1; let extraPierce=0; let extraRate=1;
+  for(const p of SYN_PAIRS){ if(tags.has(p.a)&&tags.has(p.b)){ m*=p.mult; if(p.fx==='+穿透1') extraPierce+=1; if(p.label==='过载') extraRate*=1.3; } }
+  m *= 1 + TAG_GLOBAL_BONUS*tags.size;
+  s.comboMult=m; s._extraPierce=extraPierce; s._extraRate=extraRate;
+  return m;
+}
+// 模拟「如果选了某张卡」后的连携倍率（不改真实状态）
+function previewComboWith(extraId){
+  const beforeCL=Object.assign({},G.cardLevels);
+  const bM=G.player.comboMult,bP=G.player._extraPierce,bR=G.player._extraRate;
+  G.cardLevels[extraId]=(G.cardLevels[extraId]||0)+1;
+  recombo();
+  const m=G.player.comboMult;
+  G.cardLevels=beforeCL; G.player.comboMult=bM; G.player._extraPierce=bP; G.player._extraRate=bR;
+  return m;
+}
+
+// ---------- Spawning ----------
+function spawnEnemy(){
+  const def=G.levelDef; const hpScale=def.hp*G.diffMul, dmgScale=def.dmg*G.diffMul;
+  const edge=Math.floor(Math.random()*4);
+  let x,y; const m=30;
+  if(edge===0){x=Math.random()*W;y=-m;} else if(edge===1){x=W+m;y=Math.random()*H;}
+  else if(edge===2){x=Math.random()*W;y=H+m;} else {x=-m;y=Math.random()*H;}
+  const types=def.types; const type=types[Math.floor(Math.random()*types.length)];
+  let e;
+  if(type==='bat'){ e={x,y,r:12,hp:11*hpScale,maxhp:11*hpScale,sp:150+Math.random()*40,dmg:8*dmgScale,emoji:'🦇',col:'#b9a',type:'bat'}; }
+  else if(type==='rat'){ e={x,y,r:15,hp:32*hpScale,maxhp:32*hpScale,sp:100,dmg:11*dmgScale,emoji:'🐀',col:'#9aa',type:'rat'}; }
+  else if(type==='bot'){ e={x,y,r:20,hp:70*hpScale,maxhp:70*hpScale,sp:58,dmg:14*dmgScale,emoji:'🤖',col:'#7af',type:'bot'}; }
+  else if(type==='split'){ e={x,y,r:17,hp:30*hpScale,maxhp:30*hpScale,sp:90,dmg:10*dmgScale,emoji:'🟢',col:'#6c6',type:'split'}; }
+  else if(type==='shooter'){ e={x,y,r:16,hp:40*hpScale,maxhp:40*hpScale,sp:70,dmg:9*dmgScale,emoji:'🔫',col:'#fc6',type:'shooter',cd:1.2}; }
+  else { e={x,y,r:16,hp:26*hpScale,maxhp:26*hpScale,sp:130,dmg:16*dmgScale,emoji:'💣',col:'#f96',type:'bomber',fuse:-1}; }
+  G.enemies.push(e);
+}
+function spawnMini(x,y){ const hpScale=G.levelDef.hp*G.diffMul;
+  G.enemies.push({x,y,r:9,hp:9*hpScale,maxhp:9*hpScale,sp:135,dmg:5,emoji:'🟡',col:'#cc3',type:'mini'}); }
+// 按玩家当前战力估算对单体 Boss 的有效 DPS（不依赖探测期瞄怪，避免被小怪干扰导致血量失真）。
+function estBossDPS(){
+  const p=G.player; let raw=0;
+  for(const w of p.weapons){
+    if(w==='shot') raw += p.proj * (p.fireRate*p.fireMult);
+    else if(w==='shotgun') raw += 5*0.6;
+    else if(w==='orbit') raw += p.orbs*0.9*18;   // 环绕：保守估每颗每秒 ~18 次命中
+    else if(w==='beam') raw += 3*1.1;            // 激光：每 ~0.9s 一发 ×3 伤害
+    else if(w==='summon') raw += p.summons*0.8*2;// 助手：约每 0.5s 一发 ×0.8 伤害
+  }
+  raw *= p.dmg;
+  return raw * p.dmgMult * p.comboMult;
+}
+function spawnBoss(){
+  // 血量在生成瞬间按当前战力动态标定：目标战斗时长随关卡递增（约 24~38 秒），最低 200 兜底；
+  // 并随难度档(hp 倍率)同步变厚。这样任何流派都是"真实打一段时间"的 Boss——既不会被一发大招秒，也不会卡死。
+  G.bossAlive=true; G.bossSpawned=true; G.bossDead=false;
+  G.bossProbe=1.0; G.bossProbeDmg=0; G.bossProbeDur=1.0; // 短暂登场无敌（仅视觉缓冲，不再用于测量）
+  const idx=G.lvlIdx; const r=46+idx*2; // 越后面的 Boss 体型略大
+  const est=estBossDPS();
+  const T=15 + idx*0.85;
+  const hp=Math.max(200, Math.round(est*T*G.diffMul));
+  G.enemies.push({x:W/2,y:70,r,hp,maxhp:hp,sp:46,dmg:10*G.levelDef.dmg*G.diffMul,emoji:'🐉',col:'#ff5da2',type:'boss',boss:true,cd:3,enraged:false,bossIdx:idx});
+  floatText(W/2,110,'⚠️ 垃圾龙来袭！','#ff5da2',30);
+}
+
+// ---------- Helpers ----------
+function dist2(a,b){ const dx=a.x-b.x,dy=a.y-b.y; return dx*dx+dy*dy; }
+function clamp(v,a,b){ return v<a?a:(v>b?b:v); }
+function floatText(x,y,txt,col,sz){ G.texts.push({x,y,txt,col:col||'#fff',life:0.9,vy:-34,sz:sz||15}); }
+function burst(x,y,col,n){ for(let i=0;i<n;i++){ const a=Math.random()*6.28,s=40+Math.random()*120;
+  G.parts.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s,life:0.5+Math.random()*0.3,col}); } }
+function segDist(px,py,x1,y1,x2,y2){ const dx=x2-x1,dy=y2-y1; const l2=dx*dx+dy*dy||1;
+  let t=((px-x1)*dx+(py-y1)*dy)/l2; t=clamp(t,0,1); const cx=x1+t*dx,cy=y1+t*dy;
+  return Math.hypot(px-cx,py-cy); }
+
+// ---------- Ultimate ----------
+function tryUlt(){
+  if(phase!==PHASE.PLAY || !G || G.player.energy<100) return;
+  const p=G.player; p.energy=0; G.slowT=0.5; G.shake=22; sUlt();
+  const fl=document.getElementById('flash'); if(fl){ fl.classList.add('show'); setTimeout(()=>fl.classList.remove('show'),140); }
+  floatText(p.x,p.y-30,'清屏!!', '#fff', 34);
+  for(let i=G.enemies.length-1;i>=0;i--){ const e=G.enemies[i];
+    if(e.boss){ dealDamage(e,{dmg:p.dmg*12, crit:false}); }
+    else { killEnemy(e,true); } }
+  G.ebullets.length=0;
+}
+
+// ---------- Update ----------
+function update(dt){
+  G.t+=dt; const p=G.player;
+  p.invuln=Math.max(0,p.invuln-dt); p.slowT=Math.max(0,p.slowT-dt);
+  // movement
+  let mx=0,my=0;
+  if(keys['w']||keys['arrowup'])my-=1; if(keys['s']||keys['arrowdown'])my+=1;
+  if(keys['a']||keys['arrowleft'])mx-=1; if(keys['d']||keys['arrowright'])mx+=1;
+  let aimAng = (mx||my)? Math.atan2(my,mx) : null;
+  if(!aimAng){ let bd=1e9,best=null; for(const e of G.enemies){ const d=dist2(p,e); if(d<bd){bd=d;best=e;} }
+    if(best) aimAng=Math.atan2(best.y-p.y,best.x-p.x); else aimAng=0; }
+  if(mx||my){ const l=Math.hypot(mx,my); mx/=l;my/=l; }
+  else if(pointer.down){ const dx=pointer.x-p.x,dy=pointer.y-p.y,d=Math.hypot(dx,dy);
+    if(d>6){ mx=dx/d;my=dy/d; } }
+  p.slowT2=Math.max(0,(p.slowT2||0)-dt);
+  const spd=p.speed*((p.slowT>0)?0.5:1);
+  p.x+=mx*spd*dt; p.y+=my*spd*dt;
+  p.x=Math.max(p.r,Math.min(W-p.r,p.x)); p.y=Math.max(p.r,Math.min(H-p.r,p.y));
+
+  // spawn (level-based)
+  G.lt += dt;
+  G.spawnCd-=dt;
+  if(G.spawnCd<=0){ const def=G.levelDef;
+    const burst = 1 + (G.lvlIdx>=2?1:0) + (G.lvlIdx>=4?1:0);
+    for(let i=0;i<burst;i++){ if(G.enemies.length<def.maxE) spawnEnemy(); }
+    G.spawnCd = def.rate*(0.85+Math.random()*0.3); }
+
+  // weapons
+  fireWeapons(dt, aimAng);
+
+  // enemies AI
+  for(let i=G.enemies.length-1;i>=0;i--){ const e=G.enemies[i];
+    const dx=p.x-e.x,dy=p.y-e.y,d=Math.hypot(dx,dy)||1;
+    if(e.type==='shooter'){
+      const want=220; if(d>want+30){ e.x+=dx/d*e.sp*dt; e.y+=dy/d*e.sp*dt; }
+      else if(d<want-30){ e.x-=dx/d*e.sp*dt; e.y-=dy/d*e.sp*dt; }
+      e.cd-=dt; if(e.cd<=0){ e.cd=1.6; const a=Math.atan2(dy,dx);
+        G.ebullets.push({x:e.x,y:e.y,vx:Math.cos(a)*240,vy:Math.sin(a)*240,life:3,dmg:e.dmg}); }
+    } else if(e.type==='bomber'){
+      e.x+=dx/d*e.sp*dt; e.y+=dy/d*e.sp*dt;
+      if(e.fuse<0 && d<46){ e.fuse=0.45; }
+      if(e.fuse>=0){ e.fuse-=dt; if(e.fuse<=0){ // explode
+        if(p.invuln<=0 && Math.hypot(p.x-e.x,p.y-e.y)<e.r+40){ p.hp-=Math.max(1,(e.dmg-(p.armor||0))*1.6); hurtPlayer(); }
+        burst(e.x,e.y,'#f96',18); G.enemies.splice(i,1); continue; } }
+    } else if(e.type==='boss'){
+      // 垃圾龙：缓慢逼近玩家，并周期性放射状弹幕，需要走位躲避。
+      // 血量过半进入狂暴：弹幕更密更快、移速提升。
+      if(!e.enraged && e.hp < e.maxhp*0.5){ e.enraged=true; e.sp*=1.12; e.cd=0.6;
+        floatText(e.x,e.y-e.r-10,'🐉 狂暴！','#ff3b3b',28); G.shake=14; }
+      e.x+=dx/d*e.sp*dt; e.y+=dy/d*e.sp*dt;
+      e.cd-=dt; if(e.cd<=0){ const enr=e.enraged;
+        // 弹幕密度随关卡温和增长：早期 Boss 十几发可躲，后期才到二十多发；狂暴只加量不加太多速。
+        const bi=e.bossIdx||0; const base=8 + bi*0.7;
+        e.cd=enr?2.0:2.8;
+        const n=enr?Math.round(base*1.2):Math.round(base), spd=enr?130:90, base2=Math.atan2(dy,dx);
+        for(let k=0;k<n;k++){ const a=base2 + k*6.283/n;
+          G.ebullets.push({x:e.x,y:e.y,vx:Math.cos(a)*spd,vy:Math.sin(a)*spd,life:4,dmg:e.dmg*0.5}); }
+        burst(e.x,e.y,'#ff5da2', enr?n:Math.round(base)); }
+    } else {
+      e.x+=dx/d*e.sp*dt; e.y+=dy/d*e.sp*dt;
+    }
+    if(d < e.r+p.r){ if(p.invuln<=0){ p.hp-=Math.max(1,e.dmg-(p.armor||0)); p.invuln=0.5; p.slowT=0.28;
+      const k=Math.min(22, e.r+p.r-d); p.x+=dx/d*k; p.y+=dy/d*k;
+      G.shake=Math.min(16,G.shake+8); sHurt(); hurtFlash(); hideHint();
+      floatText(p.x,p.y-e.r-6,'-'+Math.round(e.dmg),'#ff6b6b');
+      if(p.hp<=0){ gameOver(); return; } } }
+  }
+  // enemy bullets
+  for(let i=G.ebullets.length-1;i>=0;i--){ const b=G.ebullets[i];
+    b.x+=b.vx*dt; b.y+=b.vy*dt; b.life-=dt;
+    if(b.life<=0||b.x<-20||b.x>W+20||b.y<-20||b.y>H+20){ G.ebullets.splice(i,1); continue; }
+    if(Math.hypot(p.x-b.x,p.y-b.y)<p.r+5){ if(p.invuln<=0){ p.hp-=Math.max(1,b.dmg-(p.armor||0)); p.invuln=0.5; hurtFlash();
+      floatText(p.x,p.y-20,'-'+Math.round(b.dmg),'#ff6b6b'); if(p.hp<=0){ gameOver(); return; } }
+      G.ebullets.splice(i,1); }
+  }
+  // shots
+  for(let i=G.shots.length-1;i>=0;i--){ const s=G.shots[i];
+    s.x+=s.vx*dt; s.y+=s.vy*dt; s.life-=dt;
+    if(s.life<=0||s.x<-20||s.x>W+20||s.y<-20||s.y>H+20){ G.shots.splice(i,1); continue; }
+    let hitAny=false;
+    for(const e of G.enemies){ if(dist2(s,e)<(e.r+6)*(e.r+6)){
+      dealDamage(e,s); hitAny=true;
+      if(s.aoe>0){ burst(s.x,s.y,'#ffae42',10);
+        for(const e2 of G.enemies){ if(dist2(s,e2)<(s.aoe+e2.r)*(s.aoe+e2.r) && e2!==e){ dealDamage(e2,{dmg:s.dmg*0.5,crit:false}); } } }
+      if(s.pierce>0){ s.pierce--; } else { G.shots.splice(i,1); }
+      break;
+    }}
+    if(hitAny && G.shots[i]===undefined) continue;
+  }
+  // beams (transient)
+  for(let i=G.beams.length-1;i>=0;i--){ const bm=G.beams[i]; bm.life-=dt; if(bm.life<=0){ G.beams.splice(i,1); } }
+  // allies
+  for(const a of G.allies){ a.cd-=dt;
+    const dx=p.x-a.x,dy=p.y-a.y,d=Math.hypot(dx,dy)||1; const want=60;
+    if(d>want){ a.x+=dx/d*180*dt; a.y+=dy/d*180*dt; }
+    if(a.cd<=0){ let bd=1e9,best=null; for(const e of G.enemies){ const dd=dist2(a,e); if(dd<bd){bd=dd;best=e;} }
+      if(best){ const ang=Math.atan2(best.y-a.y,best.x-a.x);
+        G.shots.push({x:a.x,y:a.y,vx:Math.cos(ang)*520,vy:Math.sin(ang)*520,dmg:p.dmg*0.8,life:1.2,pierce:0,aoe:0,crit:false});
+        a.cd=0.5; } } }
+
+  // gems
+  for(let i=G.gems.length-1;i>=0;i--){ const g=G.gems[i];
+    const d=Math.hypot(p.x-g.x,p.y-g.y);
+    if(d<p.magnet){ const dx=p.x-g.x,dy=p.y-g.y,l=Math.hypot(dx,dy)||1;
+      const pull=Math.min(460, 200+d*4); g.x+=dx/l*pull*dt; g.y+=dy/l*pull*dt; }
+    if(d<p.r+6){ gainXp(g.v); G.gems.splice(i,1); sPick(); }
+  }
+  // heals (💚 回血)
+  for(let i=G.heals.length-1;i>=0;i--){ const h=G.heals[i];
+    h.life-=dt; if(h.life<=0){ G.heals.splice(i,1); continue; }
+    const d=Math.hypot(p.x-h.x,p.y-h.y);
+    if(d<p.magnet){ const dx=p.x-h.x,dy=p.y-h.y,l=Math.hypot(dx,dy)||1;
+      const pull=Math.min(460,200+d*4); h.x+=dx/l*pull*dt; h.y+=dy/l*pull*dt; }
+    if(d<p.r+12){ p.hp=Math.min(p.maxhp,p.hp+20);
+      floatText(p.x,p.y-22,'+20','#39e0c8',18); G.heals.splice(i,1); sPick(); }
+  }
+  // particles + texts
+  for(let i=G.parts.length-1;i>=0;i--){ const q=G.parts[i]; q.x+=q.vx*dt;q.y+=q.vy*dt;
+    q.vx*=0.92;q.vy*=0.92;q.life-=dt; if(q.life<=0)G.parts.splice(i,1); }
+  for(let i=G.texts.length-1;i>=0;i--){ const tx=G.texts[i]; tx.y+=tx.vy*dt; tx.life-=dt; if(tx.life<=0)G.texts.splice(i,1); }
+  // 大招能量：被动微涨（约每 16s 满）叠加击杀/伤害获取，让清屏成为可靠的"救命按钮"，而非几分钟一次。
+  p.energy = Math.min(100, p.energy + 5*dt*p.energyGain);
+  // streak
+  G.streakT-=dt; if(G.streakT<=0){ G.streak=0; }
+  // dps：最近 5 秒滑动窗口平滑（极少归零，避免"明明在打却显示 0"的困惑）
+  G._frameDmg=G._frameDmg||0;
+  G.dpsBuf=G.dpsBuf||[];
+  if(G._frameDmg>0){ G.dpsBuf.push({t:G.t, d:G._frameDmg}); G._frameDmg=0; }
+  while(G.dpsBuf.length && G.t-G.dpsBuf[0].t>5) G.dpsBuf.shift();
+  let wsum=0; for(const b of G.dpsBuf) wsum+=b.d;
+  G.dps=Math.round(wsum/5); if(G.dps>G.dpsPeak)G.dpsPeak=G.dps;
+  G.shake*=0.86;
+  // boss 登场短暂无敌（仅视觉缓冲；血量已在 spawnBoss 按战力标定，不再探测锁定）
+  if(G.levelDef.boss && G.bossProbe>0){ G.bossProbe-=dt; if(G.bossProbe<0)G.bossProbe=0; }
+  // boss 关复活后补生成：放在主循环里（不再依赖一次性 setTimeout），避免被复活瞬间的升级抽卡打断导致永久软锁
+  if(G.levelDef.boss && G.bossRespawnT>0){ G.bossRespawnT-=dt; if(G.bossRespawnT<=0 && !G.bossSpawned && !G.bossDead){ spawnBoss(); } }
+  // level clear / win
+  const def2=G.levelDef;
+  if(def2.boss){
+    if(G.bossDead){
+      if(G.lvlIdx>=LEVELS.length-1){ winGame(); } else { levelClear(); }
+      return;
+    }
+  } else if(G.lt>=def2.dur){ levelClear(); return; }
+  updHud();
+}
+
+function fireWeapons(dt, aimAng){
+  const p=G.player;
+  for(const w of p.weapons){
+    const st=G.ws[w]||(G.ws[w]={cd:0,ang:0});
+    if(w==='shot'){ const rate=p.fireRate*p.fireMult*(p._extraRate||1); st.cd-=dt;
+      if(st.cd<=0){ fireShot(aimAng); st.cd=1/rate; } }
+    else if(w==='orbit'){ st.ang+=dt*2.4; const k=p.orbs; const R=76;
+      for(let i=0;i<k;i++){ const a=st.ang + i*6.283/k; const ox=p.x+Math.cos(a)*R, oy=p.y+Math.sin(a)*R;
+        for(const e of G.enemies){ if(dist2({x:ox,y:oy},e)<(e.r+14)*(e.r+14)){
+          dealDamage(e,{dmg:p.dmg*0.9, crit:false}); } } } }
+    else if(w==='beam'){ st.cd-=dt; if(st.cd<=0){ st.cd=1/1.1;
+        const len=660; const x2=p.x+Math.cos(aimAng)*len, y2=p.y+Math.sin(aimAng)*len;
+        G.beams.push({x1:p.x,y1:p.y,x2,y2,life:0.18});
+        for(const e of G.enemies){ if(segDist(e.x,e.y,p.x,p.y,x2,y2)<e.r+10){ dealDamage(e,{dmg:p.dmg*3,crit:false}); } }
+        burst(p.x+Math.cos(aimAng)*40,p.y+Math.sin(aimAng)*40,'#9fe8ff',6); } }
+    else if(w==='shotgun'){ st.cd-=dt; if(st.cd<=0){ st.cd=1/1.0;
+        for(let j=0;j<5;j++){ const a=aimAng+(j-2)*0.16;
+          G.shots.push({x:p.x,y:p.y,vx:Math.cos(a)*520,vy:Math.sin(a)*520,dmg:p.dmg*0.6,life:0.34,pierce:0,aoe:0,crit:false}); }
+        sShoot(); } }
+    else if(w==='summon'){ if(G.allies.length < p.summons){ G.allies.push({x:p.x,y:p.y,cd:0}); } }
+  }
+}
+function fireShot(aimAng){
+  const p=G.player; let best=null,bd=1e9;
+  for(const e of G.enemies){ const d=dist2(p,e); if(d<bd){bd=d;best=e;} }
+  if(!best) return;
+  const baseAng=aimAng!=null?aimAng:Math.atan2(best.y-p.y,best.x-p.x);
+  const n=p.proj; const spread=0.18;
+  for(let i=0;i<n;i++){ const off=(i-(n-1)/2)*spread; const a=baseAng+off;
+    G.shots.push({ x:p.x,y:p.y, vx:Math.cos(a)*560,vy:Math.sin(a)*560,
+      dmg:p.dmg, life:1.4, pierce:p.pierce+(p._extraPierce||0), aoe:p.aoe, crit:false }); }
+  sShoot();
+}
+function dealDamage(e,s){
+  const p=G.player; const crit=Math.random()<p.crit;
+  let dmg=s.dmg*(p.dmgMult)*(p.comboMult)*(crit?p.critMul:1);
+  dmg=Math.round(dmg);
+  // 探测期内：boss 免伤且不被击杀，仅累计"本应造成的伤害"用于测量单体 DPS（仍显示命中反馈）。
+  if(e.boss && G.bossProbe>0){
+    G.bossProbeDmg+=dmg;
+    const sz=clamp(13+dmg/40,13,28);
+    if(crit) floatText(e.x,e.y-e.r-4,dmg+'!','#ffd166',sz); else floatText(e.x,e.y-e.r-4,dmg,'#fff',sz);
+    burst(e.x,e.y,e.col||'#9af',2); sHit();
+    return;
+  }
+  e.hp-=dmg;
+  G._frameDmg=(G._frameDmg||0)+dmg;
+  const sz=clamp(13+dmg/40,13,30);
+  if(crit) floatText(e.x,e.y-e.r-4,dmg+'!','#ffd166',sz); else floatText(e.x,e.y-e.r-4,dmg,'#fff',sz);
+  burst(e.x,e.y,e.col||'#9af',3); sHit();
+  p.energy=Math.min(100,p.energy + dmg*0.001*p.energyGain);
+  if(e.hp<=0) killEnemy(e);
+}
+function killEnemy(e,silent){
+  const idx=G.enemies.indexOf(e); if(idx<0) return; G.enemies.splice(idx,1);
+  G.kills++; G.streak++; G.streakT=2.6; if(G.streak>G.maxStreak)G.maxStreak=G.streak;
+  if(G.streak>1 && G.streak%5===0){ sStreak(G.streak); floatText(G.player.x,G.player.y-40,G.streak+' 连杀!','#ff5da2',22); }
+  const p=G.player;
+  if(p.lifesteal>0){ p.hp=Math.min(p.maxhp,p.hp+p.lifesteal); }
+  if(e.type==='split'){ spawnMini(e.x-10,e.y); spawnMini(e.x+10,e.y); }
+  const v=e.boss?25:(e.type==='bot'?3:1);
+  G.gems.push({x:e.x,y:e.y,v,r:6,col:'#39e0c8'});
+  if(!e.boss && Math.random()<0.12) G.heals.push({x:e.x,y:e.y,r:11,life:14});
+  burst(e.x,e.y,e.col||'#9af', e.boss?34:8);
+  p.energy=Math.min(100,p.energy + (e.boss?3:0.15)*p.energyGain);
+  if(e.boss){ G.bossAlive=false; G.bossDead=true; G.bossKills++; p.hp=Math.min(p.maxhp,p.hp+30);
+    floatText(e.x,e.y,'BOSS击破! +30','#ffd166',24); G.shake=20; G.slowT=0.25; }
+}
+function gainXp(v){
+  G.xp+=v;
+  while(G.xp>=G.xpNext){ G.xp-=G.xpNext; G.level++; G.xpNext=Math.round(G.xpNext*1.28+2); G.pendingLevels++; }
+  if(phase!==PHASE.DRAFT && G.pendingLevels>0){ G.pendingLevels--; openDraft(); }
+}
+
+// ---------- Draft ----------
+function openDraft(){
+  phase=PHASE.DRAFT; sLevel();
+  const avail=CARDS.filter(c=> c.repeatable || !G.cardLevels[c.id]);
+  const pool=avail.length>=3?avail:CARDS.slice();
+  const picks=[]; const tmp=pool.slice();
+  while(picks.length<3 && tmp.length){ const i=Math.floor(Math.random()*tmp.length); picks.push(tmp.splice(i,1)[0]); }
+  // 动态刷新连携图例（与 recombo 共用 SYN_PAIRS，永不漂移）
+  const tags=activeTags();
+  let leg=`<div class="syn-title">🔗 连携配方（两个 tag 同时存在 → 触发伤害乘数）</div>`;
+  for(const p of SYN_PAIRS){
+    const on=tags.has(p.a)&&tags.has(p.b);
+    leg+=`<div class="syn-row${on?' syn-on':''}">${TAG_EMOJI[p.a]||''}${p.a} + ${TAG_EMOJI[p.b]||''}${p.b} = <b>${p.label}</b> 伤害 ×${p.mult}${p.fx?' '+p.fx:''}${on?' ✓已激活':''}</div>`;
+  }
+  leg+=`<div class="syn-row syn-note">当前已激活 tag ${tags.size} 个 · 连携 ×${G.player.comboMult.toFixed(2)} · 每多 1 个 tag 全局伤害额外 +${Math.round(TAG_GLOBAL_BONUS*100)}%。火花/易燃/剧毒/连锁 是凑连携的「积木」。</div>`;
+  leg+=`<div class="syn-row syn-note">⚠️ 抽到的卡（含武器卡）只在本局有效，死了清空；想永久保留某把武器，去首页「🗑️ 仓库」花垃圾币买。</div>`;
+  document.getElementById('synLegend').innerHTML=leg;
+  // 渲染抽卡：每张卡显示「选后连携」预览 + 连携积木标
+  const cur=G.player.comboMult;
+  const box=document.getElementById('draftCards'); box.innerHTML='';
+  for(const c of picks){
+    const lv=G.cardLevels[c.id]||0; const el=document.createElement('div'); el.className='card';
+    const tagHtml=c.tags.map(t=>`<span class="tag">${TAG_EMOJI[t]||''}${t}</span>`).join('');
+    const after=previewComboWith(c.id);
+    let comboLine;
+    if(c.tags.length===0){ comboLine=`<div class="combo-prev">⚔️ 属性卡 · 当前连携 ×${cur.toFixed(2)}</div>`; }
+    else if(after>cur+0.001){ comboLine=`<div class="combo-prev up">选后连携 ×${cur.toFixed(2)} → <b>×${after.toFixed(2)}</b> ⬆️</div>`; }
+    else { comboLine=`<div class="combo-prev">连携不变 · 当前 ×${cur.toFixed(2)}</div>`; }
+    const badge=c.tags.length>0?`<div class="brick-badge">🔗 连携</div>`:'';
+    el.innerHTML=`<div class="lvtag">${lv>0?'Lv'+lv:''}</div>${badge}
+      <div class="emoji">${c.emoji}</div><div class="cname">${c.name}</div>
+      <div class="cdesc">${c.desc}</div><div class="tags">${tagHtml}</div>
+      ${comboLine}
+      <div class="cdetail">${c.detail||''}</div>`;
+    el.onclick=()=>chooseCard(c); box.appendChild(el);
+  }
+  document.getElementById('draft').classList.remove('hidden');
+}
+function chooseCard(c){
+  c.apply(G.player);
+  G.cardLevels[c.id]=(G.cardLevels[c.id]||0)+1;
+  recombo();
+  document.getElementById('draft').classList.add('hidden');
+  if(G.pendingLevels>0){ G.pendingLevels--; openDraft(); }
+  else phase=PHASE.PLAY;
+}
+
+// ---------- Render ----------
+function render(){
+  ctx.clearRect(0,0,W,H);
+  ctx.save();
+  if(G && G.shake>0.4){ ctx.translate((Math.random()-0.5)*G.shake,(Math.random()-0.5)*G.shake); }
+  ctx.strokeStyle='rgba(80,120,200,.07)'; ctx.lineWidth=1; const gs=48;
+  for(let x=0;x<W;x+=gs){ ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke(); }
+  for(let y=0;y<H;y+=gs){ ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke(); }
+  if(!G){ ctx.restore(); return; }
+  // gems
+  for(const g of G.gems){ ctx.fillStyle=g.col; ctx.beginPath(); ctx.arc(g.x,g.y,g.r,0,6.28); ctx.fill();
+    ctx.shadowBlur=8; ctx.shadowColor=g.col; ctx.fill(); ctx.shadowBlur=0; }
+  // heals
+  for(const h of G.heals){ ctx.font='22px serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.shadowBlur=10; ctx.shadowColor='#39e0c8'; ctx.fillText('💚',h.x,h.y); ctx.shadowBlur=0; }
+  // enemies
+  for(const e of G.enemies){ ctx.font=(e.r*2)+'px serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+    if(e.type==='bomber'&&e.fuse>=0){ ctx.shadowBlur=12; ctx.shadowColor='#f60'; }
+    ctx.fillText(e.emoji,e.x,e.y); ctx.shadowBlur=0;
+    if(e.boss||e.hp<e.maxhp){ const w=e.r*2; const hpr=Math.max(0,e.hp/e.maxhp);
+      ctx.fillStyle='rgba(0,0,0,.5)'; ctx.fillRect(e.x-w/2,e.y-e.r-8,w,4);
+      ctx.fillStyle=e.boss?'#ff5da2':'#7CFC00'; ctx.fillRect(e.x-w/2,e.y-e.r-8,w*hpr,4); } }
+  // enemy bullets
+  for(const b of G.ebullets){ ctx.fillStyle='#ff5a5a'; ctx.shadowBlur=6; ctx.shadowColor='#ff5a5a';
+    ctx.beginPath(); ctx.arc(b.x,b.y,4,0,6.28); ctx.fill(); ctx.shadowBlur=0; }
+  // beams
+  for(const bm of G.beams){ ctx.strokeStyle='rgba(159,232,255,.9)'; ctx.lineWidth=10; ctx.lineCap='round';
+    ctx.shadowBlur=14; ctx.shadowColor='#9fe8ff'; ctx.beginPath(); ctx.moveTo(bm.x1,bm.y1); ctx.lineTo(bm.x2,bm.y2); ctx.stroke(); ctx.shadowBlur=0; }
+  // shots
+  for(const s of G.shots){ ctx.fillStyle=s.crit?'#ffd166':'#9fe8ff'; ctx.shadowBlur=10; ctx.shadowColor=ctx.fillStyle;
+    ctx.beginPath(); ctx.arc(s.x,s.y,5,0,6.28); ctx.fill(); ctx.shadowBlur=0; }
+  // orbit orbs
+  const p=G.player;
+  if(p.weapons.includes('orbit')){ const st=G.ws.orbit||{ang:0}; const k=p.orbs,R=76;
+    for(let i=0;i<k;i++){ const a=st.ang+i*6.283/k; const ox=p.x+Math.cos(a)*R, oy=p.y+Math.sin(a)*R;
+      ctx.fillStyle='#9b5cff'; ctx.shadowBlur=12; ctx.shadowColor='#9b5cff';
+      ctx.beginPath(); ctx.arc(ox,oy,7,0,6.28); ctx.fill(); ctx.shadowBlur=0; } }
+  // allies
+  for(const a of G.allies){ ctx.font='20px serif'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText('🐾',a.x,a.y); }
+  // player
+  ctx.font='30px serif'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText('🦝',p.x,p.y);
+  if(p.invuln>0){ ctx.strokeStyle='rgba(255,255,255,.6)';ctx.lineWidth=2;ctx.beginPath();ctx.arc(p.x,p.y,p.r+6,0,6.28);ctx.stroke(); }
+  // ult ready ring
+  if(p.energy>=100){ ctx.strokeStyle='rgba(155,92,255,.9)'; ctx.lineWidth=3; ctx.beginPath(); ctx.arc(p.x,p.y,p.r+12,0,6.28); ctx.stroke(); }
+  // particles
+  for(const q of G.parts){ ctx.globalAlpha=Math.max(0,q.life*2); ctx.fillStyle=q.col;
+    ctx.beginPath(); ctx.arc(q.x,q.y,3,0,6.28); ctx.fill(); }
+  ctx.globalAlpha=1;
+  // floating texts
+  ctx.textAlign='center';
+  for(const tx of G.texts){ ctx.globalAlpha=Math.max(0,tx.life); ctx.fillStyle=tx.col;
+    ctx.font='bold '+(tx.sz||15)+'px sans-serif'; ctx.fillText(tx.txt,tx.x,tx.y); }
+  ctx.globalAlpha=1;
+  ctx.restore();
+}
+
+// ---------- HUD ----------
+function hurtFlash(){ const h=document.getElementById('hurt'); if(!h)return; h.classList.add('show'); setTimeout(()=>h.classList.remove('show'),90); }
+function hideHint(){ const h=document.getElementById('hint'); if(h) h.classList.add('hidden'); }
+function hurtPlayer(){ sHurt(); hurtFlash(); hideHint(); }
+function showToast(msg, ms){ const t=document.getElementById('toast'); if(!t)return; t.textContent=msg; t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'), ms||5000); }
+function updHud(){
+  document.getElementById('hLevel').textContent='关 '+(G.lvlIdx+1)+'/'+LEVELS.length;
+  const def=G.levelDef;
+  if(def.boss){ document.getElementById('hTime').textContent='🐉 BOSS'; }
+  else { document.getElementById('hTime').textContent=fmtTime(Math.max(0,def.dur-G.lt)); }
+  document.getElementById('hLv').textContent=G.level;
+  document.getElementById('hKills').textContent=G.kills;
+  document.getElementById('hCombo').textContent='x'+G.player.comboMult.toFixed(2);
+  document.getElementById('hStr').textContent=G.streak;
+  document.getElementById('hDps').textContent=G.dps;
+  const hpw=G.player.hp/G.player.maxhp;
+  document.getElementById('hp').style.width=Math.max(0,hpw*100)+'%';
+  const hpwrap=document.getElementById('hpwrap'); if(hpwrap) hpwrap.classList.toggle('low', hpw<0.3);
+  document.getElementById('en').style.width=(G.player.energy)+'%';
+  document.getElementById('xp').style.width=Math.min(100,G.xp/G.xpNext*100)+'%';
+}
+function fmtTime(s){ const m=Math.floor(s/60),ss=Math.floor(s%60); return m+':'+(ss<10?'0':'')+ss; }
+
+// ---------- Loop ----------
+let last=0;
+function loop(ts){
+  const realDt=Math.min(0.033,(ts-last)/1000||0); last=ts;
+  if(G) G.slowT=Math.max(0,G.slowT-realDt);
+  if(phase===PHASE.PLAY){ const ts2=G.slowT>0?realDt*0.25:realDt; update(ts2); }
+  render();
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+
+// ---------- Phase control ----------
+let selDiff = 1; // 当前选中的难度（受 unlockedDiff 限制）
+function startGame(){
+  selDiff = Math.min(selDiff, META.unlockedDiff);
+  G=newGame(); G.diff=selDiff; G.diffMul=DIFFS[selDiff-1].hp; G.coinMul=DIFFS[selDiff-1].coin;
+  recombo(); startLevel(0);
+}
+function startLevel(idx){
+  G.lvlIdx=idx; G.levelDef=LEVELS[idx]; G.lt=0; G.spawnCd=0.6;
+  if(idx+1>G.levelReached) G.levelReached=idx+1;
+  G.enemies.length=0; G.ebullets.length=0; G.shots.length=0; G.beams.length=0;
+  const p=G.player; p.hp=Math.min(p.maxhp,p.hp+30);
+  if(G.levelDef.boss) spawnBoss();
+  phase=PHASE.PLAY;
+  ['start','gameover','shop','draft','levelClear','win'].forEach(id=>document.getElementById(id).classList.add('hidden'));
+  document.getElementById('hud').classList.remove('hidden');
+  showBanner(G.levelDef.name, G.levelDef.boss?'目标：击败垃圾龙 🐉':'目标：撑过 '+G.levelDef.dur+' 秒');
+  const hint=document.getElementById('hint'); hint.classList.remove('hidden'); hint.style.opacity='1';
+  clearTimeout(startLevel._ht); startLevel._ht=setTimeout(hideHint,7000);
+  resize();
+}
+function showBanner(title, obj){
+  const b=document.getElementById('levelBanner');
+  b.querySelector('.lt').textContent=title;
+  b.querySelector('.lo').textContent=obj||'';
+  b.classList.add('show');
+  clearTimeout(showBanner._t); showBanner._t=setTimeout(()=>b.classList.remove('show'),2600);
+}
+function levelClear(){
+  phase=PHASE.LEVELCLEAR; sLevel();
+  document.getElementById('hud').classList.add('hidden');
+  document.getElementById('lcSub').textContent=G.levelDef.name+' 已清空！回血 30，准备下一关。';
+  document.getElementById('lcStats').innerHTML=vstatHTML();
+  document.getElementById('levelClear').classList.remove('hidden');
+}
+function runCoins(){
+  // 连杀系数封顶 ×2：连杀达到 50 即封顶，避免后期 AoE 碾压时连杀涨到几千把收入爆掉。
+  const streakBonus = 1 + 0.02*Math.min(G.maxStreak, 50);
+  const base = G.t*0.22 + G.kills*0.21 + G.level*3 + G.bossKills*105;
+  return Math.max(0, base * G.coinMul * streakBonus * G.player.coinMult);
+}
+function winGame(){
+  phase=PHASE.OVER; sLevel();
+  if(G.t>G.best){ G.best=G.t; localStorage.setItem('rr_best',G.best); }
+  const earned=Math.floor(runCoins()*1.25);
+  META.coins += earned;
+  // 通关解锁更高难度
+  let unlockMsg='';
+  if(G.diff===META.unlockedDiff && META.unlockedDiff<3){ META.unlockedDiff++; unlockMsg='🔓 解锁了难度 '+DIFFS[META.unlockedDiff-1].name+'（掉落更多垃圾币）！'; }
+  META.save();
+  document.getElementById('hud').classList.add('hidden');
+  document.getElementById('winMsg').textContent='闯过全部 12 关！🏆 本局获得 '+earned+' 🪙（含通关奖励）· 最佳 '+fmtTime(G.best)+(unlockMsg?' · '+unlockMsg:'');
+  document.getElementById('winStats').innerHTML=vstatHTML();
+  const litTot=treeLit(UPG.map(u=>u.id)), maxTot=treeMax(UPG.map(u=>u.id));
+  document.getElementById('winTree').textContent='🌳 成长树已点亮 '+litTot+'/'+maxTot+' 节点 · 点上面按钮把垃圾币花成永久力量';
+  document.getElementById('win').classList.remove('hidden');
+  renderDiff();
+}
+function vstatHTML(){
+  return `
+    <div class="s"><div class="v">${fmtTime(G.t)}</div><div class="l">总时长</div></div>
+    <div class="s"><div class="v">${G.level}</div><div class="l">等级</div></div>
+    <div class="s"><div class="v">${G.kills}</div><div class="l">击杀</div></div>
+    <div class="s"><div class="v">${G.bossKills}</div><div class="l">Boss</div></div>
+    <div class="s"><div class="v">x${G.maxStreak}</div><div class="l">最高连杀</div></div>
+    <div class="s"><div class="v">难度 ${DIFFS[G.diff-1].name}</div><div class="l">难度档</div></div>
+    <div class="s"><div class="v">x${G.player.comboMult.toFixed(2)}</div><div class="l">最终连携</div></div>`;
+}
+function gameOver(){
+  // 复活项圈：还有次数则满血清场并继续，不结束本局。
+  if((G.revives||0) > 0){
+    G.revives--;
+    const p=G.player; p.hp=p.maxhp; p.invuln=2.5;
+    G.enemies.length=0; G.ebullets.length=0; G.shots.length=0; G.beams.length=0;
+    G.gems.length=0; G.heals.length=0; // 清空地面宝石/爱心，避免复活瞬间被吸光触发升级抽卡，打断 Boss 重生
+    const wasBoss=G.levelDef.boss;
+    G.bossSpawned=false; G.bossAlive=false; G.bossRespawnT=1.4; // boss 关 1.4s 后在主循环重新生成（不再用一次性 setTimeout）
+    phase=PHASE.PLAY;
+    document.getElementById('gameover').classList.add('hidden');
+    document.getElementById('hud').classList.remove('hidden');
+    floatText(p.x,p.y-30,'💖 复活！剩余 '+G.revives,'#39e0c8',28);
+    return;
+  }
+  phase=PHASE.OVER; sHurt();
+  if(G.t>G.best){ G.best=G.t; localStorage.setItem('rr_best',G.best); }
+  const earned=Math.floor(runCoins());
+  META.coins += earned; META.save();
+  document.getElementById('hud').classList.add('hidden');
+  document.getElementById('goMsg').textContent='撑了 '+fmtTime(G.t)+' · 抵达第 '+G.levelReached+' 关 · 难度 '+DIFFS[G.diff-1].name+' · 最佳 '+fmtTime(G.best)+' · 本局获得 '+earned+' 🪙';
+  document.getElementById('goStats').innerHTML=vstatHTML();
+  const litTot=treeLit(UPG.map(u=>u.id)), maxTot=treeMax(UPG.map(u=>u.id));
+  document.getElementById('goTree').textContent='🌳 成长树已点亮 '+litTot+'/'+maxTot+' 节点 · 点上面按钮把垃圾币花成永久力量';
+  document.getElementById('gameover').classList.remove('hidden');
+}
+function togglePause(){
+  if(phase===PHASE.PLAY){ phase=PHASE.PAUSE; document.getElementById('start').classList.remove('hidden'); }
+  else if(phase===PHASE.PAUSE){ phase=PHASE.PLAY; document.getElementById('start').classList.add('hidden'); }
+}
+
+// ---------- Shop ----------
+let lastBuyId=null; // 本次刚买的项，用于给其余卡片打"通胀"高亮
+function renderShop(){
+  document.getElementById('shopCoins').textContent=META.coins;
+  const allIds=UPG.map(u=>u.id);
+  const litTot=treeLit(allIds), maxTot=treeMax(allIds);
+  document.getElementById('treeProg').textContent='🌳 成长树：已点亮 '+litTot+' / '+maxTot+' 节点';
+  const grid=document.getElementById('shopGrid'); grid.innerHTML='';
+  for(const tier of TIERS){
+    const lit=treeLit(tier.ids), mx=treeMax(tier.ids);
+    const head=document.createElement('div'); head.className='tier-head';
+    head.innerHTML=`<span>${tier.name}</span><span class="tier-prog">已点亮 ${lit}/${mx}</span>`;
+    grid.appendChild(head);
+    const row=document.createElement('div'); row.className='tier-row';
+    for(const id of tier.ids){ const u=UPG.find(x=>x.id===id); const lv=META.upg[u.id]||0; const maxed=lv>=u.max; const c=upgCost(u);
+      const showBump=(lastBuyId!==null && id!==lastBuyId);
+      const el=document.createElement('div'); el.className='upg'+(showBump?' inflated':'');
+      el.innerHTML=`<div class="ue">${u.emoji}</div><div class="un">${u.name}</div>
+        <div class="ud">${u.desc}</div><div class="ulv">等级 ${lv}/${u.max}</div>
+        ${u.weapon?'<div class="uperm">🔒 永久解锁 · 受「武器挂架」槽位限制携带</div>':''}
+        ${showBump?'<div class="bumpbadge">↑+10%</div>':''}
+        <button class="ub" ${maxed||META.coins<c?'disabled':''}>${maxed?'已满级':c+' 🪙'}</button>`;
+      el.querySelector('.ub').onclick=()=>buyUpgrade(u.id);
+      row.appendChild(el);
+    }
+    grid.appendChild(row);
+  }
+}
+function openShop(){ renderShop();
+  // 隐藏所有可能压在商店上面的结算界面（修复"通关后点升级没反应"的层级 bug）
+  ['start','gameover','win','levelClear'].forEach(id=>document.getElementById(id).classList.add('hidden'));
+  document.getElementById('shop').classList.remove('hidden');
+}
+function backToStart(){ renderDiff();
+  document.getElementById('shop').classList.add('hidden');
+  document.getElementById('start').classList.remove('hidden');
+}
+// 刷新开始界面的难度按钮（锁定状态 + 当前选中）
+function renderDiff(){
+  selDiff = Math.min(selDiff, META.unlockedDiff);
+  document.querySelectorAll('#diffRow .dbtn').forEach(b=>{
+    const d=+b.dataset.d;
+    b.disabled = d>META.unlockedDiff;
+    b.textContent = d>META.unlockedDiff ? (DIFFS[d-1].name+' 🔒') : DIFFS[d-1].name;
+    b.classList.toggle('active', d===selDiff);
+  });
+}
+
+document.getElementById('btnStart').onclick=startGame;
+document.getElementById('btnRetry').onclick=startGame;
+document.getElementById('btnShop').onclick=openShop;
+document.getElementById('btnRespec').onclick=respecMeta;
+document.getElementById('btnShop2').onclick=openShop;
+document.getElementById('btnShopPlay').onclick=startGame;
+document.getElementById('btnShopBack').onclick=backToStart;
+document.getElementById('btnTutorial').onclick=openTutorial;
+document.getElementById('btnTutStart').onclick=()=>{ localStorage.setItem('rr_tut','1'); closeTutorial(); startGame(); };
+document.getElementById('btnTutClose').onclick=()=>{ localStorage.setItem('rr_tut','1'); closeTutorial(); };
+document.getElementById('btnNextLevel').onclick=()=>{ startLevel(G.lvlIdx+1); };
+document.getElementById('btnWinRetry').onclick=startGame;
+document.getElementById('btnWinShop').onclick=openShop;
+document.getElementById('hSound').onclick=()=>{ soundOn=!soundOn;
+  document.getElementById('hSound').textContent=soundOn?'🔊':'🔇'; if(soundOn)audio(); };
+document.querySelectorAll('#diffRow .dbtn').forEach(b=>{
+  b.onclick=()=>{ const d=+b.dataset.d; if(d>META.unlockedDiff) return; selDiff=d; renderDiff(); };
+});
+function openTutorial(){ document.getElementById('tutorial').classList.remove('hidden'); }
+function closeTutorial(){ document.getElementById('tutorial').classList.add('hidden'); }
+// 首次进入自动弹教程；看过则跳过
+if(localStorage.getItem('rr_tut')==='1'){ closeTutorial(); }
+if(META.wealthReset){ showToast('🚨 垃圾场环保稽查：检测到超标囤币，超出 5 万的部分已充公！经济焕新，重新攒起你的垃圾帝国吧～', 7000); }
+renderDiff();
+
+})();
+</script>
+</body>
+</html>
