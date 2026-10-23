@@ -174,13 +174,14 @@
   <div class="pill">💀 <b id="hKills">0</b></div>
   <div class="pill combo">连携 <b id="hCombo">x1.0</b></div>
   <div class="pill str">连杀 <b id="hStr">0</b></div>
+  <div class="pill" title="剩余复活次数（整局共享，不按关重置）">💖 <b id="hRev">0</b></div>
   <div id="bars">
-    <div id="hpwrap"><div id="hp"></div></div>
-    <div id="xpwrap"><div id="xp"></div></div>
-    <div id="enwrap"><div id="en"></div></div>
+    <div id="hpwrap" title="❤️ 血量：被打会掉，归零就死（有复活项圈则满血重来）"><div id="hp"></div></div>
+    <div id="xpwrap" title="🟢 经验：拾取宝石涨条，涨满升级、三选一抽卡"><div id="xp"></div></div>
+    <div id="enwrap" title="⚡ 大招能量：充满后按空格释放清屏大招"><div id="en"></div></div>
   </div>
-  <div class="pill">DPS <b id="hDps">0</b></div>
-  <div class="pill" id="hSound" style="pointer-events:auto;cursor:pointer">🔊</div>
+  <div class="pill" title="最近 5 秒的平均每秒伤害">DPS <b id="hDps">0</b></div>
+  <div class="pill" id="hSound" title="音效开关" style="pointer-events:auto;cursor:pointer">🔊</div>
 </div>
 
 <div id="start" class="overlay">
@@ -410,7 +411,7 @@ const UPG = [
   {id:'w_summon', name:'伙伴项圈', emoji:'🐾', desc:'解锁起始召唤武器', max:1, base:180, weapon:true},
   // —— 配装 / 消耗 ——
   {id:'slot', name:'武器挂架', emoji:'🎒', desc:'起始可携带武器 +1（最多带 3 把）', max:2, base:320},
-  {id:'revival', name:'复活项圈', emoji:'💖', desc:'每局复活 +1 次（满血清场）', max:3, base:400},
+  {id:'revival', name:'复活项圈', emoji:'💖', desc:'每局复活 +1 次（满血清场）· 次数整局共享，不按关卡重置', max:3, base:400},
 ];
 // 全局通胀：已拥有的总等级越高，所有升级越贵（对标 VS「买一级全场涨 10%」）。
 function ownedLevels(){ let n=0; for(const u of UPG){ n += (META.upg[u.id]||0); } return n; }
@@ -950,6 +951,7 @@ function updHud(){
   document.getElementById('hKills').textContent=G.kills;
   document.getElementById('hCombo').textContent='x'+G.player.comboMult.toFixed(2);
   document.getElementById('hStr').textContent=G.streak;
+  document.getElementById('hRev').textContent=G.revives||0;
   document.getElementById('hDps').textContent=G.dps;
   const hpw=G.player.hp/G.player.maxhp;
   document.getElementById('hp').style.width=Math.max(0,hpw*100)+'%';
