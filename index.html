@@ -173,6 +173,7 @@
   <div class="pill">Lv <b id="hLv">1</b></div>
   <div class="pill">💀 <b id="hKills">0</b></div>
   <div class="pill combo">连携 <b id="hCombo">x1.0</b></div>
+  <div class="pill" id="hBuild" title="当前 build 流派（叠连携解锁）">🌀 散搭</div>
   <div class="pill str">连杀 <b id="hStr">0</b></div>
   <div class="pill" title="剩余复活次数（整局共享，不按关重置）">💖 <b id="hRev">0</b></div>
   <div id="bars">
@@ -266,6 +267,7 @@
     <button class="btn alt" id="btnShop2">🌳 成长树 · 用垃圾币升级</button>
     <br><br>
     <button class="btn" id="btnRetry">再开一局</button>
+    <button class="btn alt" id="btnShareGo">📸 分享战绩</button>
   </div>
 </div>
 
@@ -306,6 +308,7 @@
     <button class="btn alt" id="btnWinShop">🌳 成长树 · 用垃圾币升级</button>
     <br><br>
     <button class="btn" id="btnWinRetry">再玩一次</button>
+    <button class="btn alt" id="btnShareWin">📸 分享战绩</button>
   </div>
 </div>
 
@@ -483,7 +486,7 @@ function newGame(){
     enemies:[], shots:[], gems:[], heals:[], parts:[], texts:[], ebullets:[], allies:[], beams:[],
     fireCd:0, spawnCd:0, bossAlive:false, bossSpawned:false, bossDead:false, bossProbe:0, bossProbeDmg:0, bossProbeDur:2.0, bossRespawnT:0,
     shake:0, dpsAcc:0, dpsTime:0, dps:0, dpsPeak:0, dpsBuf:[], cardLevels:{}, pendingLevels:0,
-    streak:0, streakT:0, ws:{}, best: +(localStorage.getItem('rr_best')||0)
+    streak:0, streakT:0, comboShow:1, ws:{}, best: +(localStorage.getItem('rr_best')||0)
   };
 }
 
@@ -544,6 +547,13 @@ function previewComboWith(extraId){
   G.cardLevels=beforeCL; G.player.comboMult=bM; G.player._extraPierce=bP; G.player._extraRate=bR;
   return m;
 }
+// 当前流派：激活的连携里倍率最高者即"主流派"，给玩家一个可追逐的 build 身份
+function buildIdentity(){
+  const tags=activeTags(); let best=null,bestM=1;
+  for(const p of SYN_PAIRS){ if(tags.has(p.a)&&tags.has(p.b) && p.mult>bestM){ bestM=p.mult; best=p; } }
+  if(!best) return '🌀 散搭';
+  return best.emoji+' '+best.label+'流';
+}
 
 // ---------- Spawning ----------
 function spawnEnemy(){
@@ -603,13 +613,16 @@ function segDist(px,py,x1,y1,x2,y2){ const dx=x2-x1,dy=y2-y1; const l2=dx*dx+dy*
 // ---------- Ultimate ----------
 function tryUlt(){
   if(phase!==PHASE.PLAY || !G || G.player.energy<100) return;
-  const p=G.player; p.energy=0; G.slowT=0.5; G.shake=22; sUlt();
-  const fl=document.getElementById('flash'); if(fl){ fl.classList.add('show'); setTimeout(()=>fl.classList.remove('show'),140); }
-  floatText(p.x,p.y-30,'清屏!!', '#fff', 34);
+  const p=G.player; p.energy=0; G.slowT=0.7; G.shake=34; sUlt();
+  const fl=document.getElementById('flash'); if(fl){ fl.classList.add('show'); setTimeout(()=>fl.classList.remove('show'),260); }
+  floatText(p.x,p.y-34,'清屏!!', '#fff', 42);
+  floatText(p.x,p.y+20,'💥', '#ffd166', 50);
+  const id=buildIdentity(); if(id) floatText(p.x,p.y-64,id+' 爆发!', '#39e0c8', 24);
   for(let i=G.enemies.length-1;i>=0;i--){ const e=G.enemies[i];
     if(e.boss){ dealDamage(e,{dmg:p.dmg*12, crit:false}); }
     else { killEnemy(e,true); } }
   G.ebullets.length=0;
+  G.shake=Math.max(G.shake,34);
 }
 
 // ---------- Update ----------
@@ -733,7 +746,7 @@ function update(dt){
     q.vx*=0.92;q.vy*=0.92;q.life-=dt; if(q.life<=0)G.parts.splice(i,1); }
   for(let i=G.texts.length-1;i>=0;i--){ const tx=G.texts[i]; tx.y+=tx.vy*dt; tx.life-=dt; if(tx.life<=0)G.texts.splice(i,1); }
   // 大招能量：被动微涨（约每 16s 满）叠加击杀/伤害获取，让清屏成为可靠的"救命按钮"，而非几分钟一次。
-  p.energy = Math.min(100, p.energy + 5*dt*p.energyGain);
+  p.energy = Math.min(100, p.energy + 3*dt*p.energyGain);
   // streak
   G.streakT-=dt; if(G.streakT<=0){ G.streak=0; }
   // dps：最近 5 秒滑动窗口平滑（极少归零，避免"明明在打却显示 0"的困惑）
@@ -952,6 +965,12 @@ function updHud(){
   document.getElementById('hCombo').textContent='x'+G.player.comboMult.toFixed(2);
   document.getElementById('hStr').textContent=G.streak;
   document.getElementById('hRev').textContent=G.revives||0;
+  const hb=document.getElementById('hBuild'); if(hb) hb.textContent=buildIdentity();
+  // 连携里程碑：每叠高一档就炸一下，强化"越叠越爽"的成瘾反馈
+  if(phase===PHASE.PLAY){
+    const cm=G.player.comboMult;
+    if(cm >= G.comboShow+0.5){ G.comboShow=Math.floor(cm); const pp=G.player; floatText(pp.x,pp.y-46,'连携 x'+cm.toFixed(1)+'!', '#39e0c8', 22); G.shake=Math.max(G.shake,9); }
+  }
   document.getElementById('hDps').textContent=G.dps;
   const hpw=G.player.hp/G.player.maxhp;
   document.getElementById('hp').style.width=Math.max(0,hpw*100)+'%';
@@ -1012,6 +1031,16 @@ function runCoins(){
   const streakBonus = 1 + 0.02*Math.min(G.maxStreak, 50);
   const base = G.t*0.22 + G.kills*0.21 + G.level*3 + G.bossKills*105;
   return Math.max(0, base * G.coinMul * streakBonus * G.player.coinMult);
+}
+function shareShot(){
+  try{
+    cv.toBlob(function(blob){
+      if(!blob){ showToast('截图失败：画布为空',3000); return; }
+      const a=document.createElement('a'); a.download='浣熊垃圾场-'+Date.now()+'.png';
+      a.href=URL.createObjectURL(blob); document.body.appendChild(a); a.click(); a.remove();
+      showToast('📸 战绩图已保存！发群里 / 剪个短视频安利一波～',4200);
+    });
+  }catch(e){ showToast('截图失败：'+(e&&e.message||e),4200); }
 }
 function winGame(){
   phase=PHASE.OVER; sLevel();
@@ -1131,6 +1160,8 @@ document.getElementById('btnTutStart').onclick=()=>{ localStorage.setItem('rr_tu
 document.getElementById('btnTutClose').onclick=()=>{ localStorage.setItem('rr_tut','1'); closeTutorial(); };
 document.getElementById('btnNextLevel').onclick=()=>{ startLevel(G.lvlIdx+1); };
 document.getElementById('btnWinRetry').onclick=startGame;
+document.getElementById('btnShareWin').onclick=shareShot;
+document.getElementById('btnShareGo').onclick=shareShot;
 document.getElementById('btnWinShop').onclick=openShop;
 document.getElementById('hSound').onclick=()=>{ soundOn=!soundOn;
   document.getElementById('hSound').textContent=soundOn?'🔊':'🔇'; if(soundOn)audio(); };
