@@ -174,6 +174,7 @@
   <div class="pill">💀 <b id="hKills">0</b></div>
   <div class="pill combo">连携 <b id="hCombo">x1.0</b></div>
   <div class="pill" id="hBuild" title="当前 build 流派（叠连携解锁）">🌀 散搭</div>
+  <div class="pill" id="hSchool" title="本局命运流派：抽卡偏向它，异学派连携被压制">🎯 命运 🌀</div>
   <div class="pill str">连杀 <b id="hStr">0</b></div>
   <div class="pill" title="剩余复活次数（整局共享，不按关重置）">💖 <b id="hRev">0</b></div>
   <div id="bars">
@@ -486,7 +487,7 @@ function newGame(){
     enemies:[], shots:[], gems:[], heals:[], parts:[], texts:[], ebullets:[], allies:[], beams:[],
     fireCd:0, spawnCd:0, bossAlive:false, bossSpawned:false, bossDead:false, bossProbe:0, bossProbeDmg:0, bossProbeDur:2.0, bossRespawnT:0,
     shake:0, dpsAcc:0, dpsTime:0, dps:0, dpsPeak:0, dpsBuf:[], cardLevels:{}, pendingLevels:0,
-    streak:0, streakT:0, comboShow:1, ws:{}, best: +(localStorage.getItem('rr_best')||0)
+    streak:0, streakT:0, comboShow:1, school: SCHOOLS[Math.floor(Math.random()*SCHOOLS.length)].id, ws:{}, best: +(localStorage.getItem('rr_best')||0)
   };
 }
 
@@ -499,9 +500,10 @@ const CARDS=[
   {id:'pierce', name:'穿甲钉', emoji:'📌', tags:['重击','连锁'], repeatable:true, desc:'穿透 +1', detail:'子弹可多穿过 1 个敌人继续打', apply:p=>{ p.pierce+=1; }},
   {id:'crit', name:'暴击电池', emoji:'⚡', tags:['火花'], repeatable:true, desc:'暴击率 +12% · 暴击 ×1.5', detail:'有概率打出黄字爆击，伤害翻 1.5 倍', apply:p=>{ p.crit=Math.min(0.85,p.crit+0.12); p.critMul+=0.5; }},
   {id:'spark', name:'电弧喷罐', emoji:'🔥', tags:['火花'], repeatable:false, desc:'获得【火花】tag', detail:'连携积木：+火花 可配 易燃(燃烧)/疾速(过载)', apply:p=>{} },
-  {id:'burn', name:'易燃废料', emoji:'🧨', tags:['易燃'], repeatable:false, desc:'获得【易燃】tag', detail:'连携积木：+易燃 与 火花 组合 = 燃烧 ×1.35', apply:p=>{} },
-  {id:'toxin', name:'毒雾罐', emoji:'☣️', tags:['剧毒'], repeatable:false, desc:'获得【剧毒】tag', detail:'连携积木：+剧毒 与 连锁 组合 = 瘟疫 ×1.25', apply:p=>{} },
+  {id:'burn', name:'易燃废料', emoji:'🧨', tags:['易燃'], repeatable:false, desc:'获得【易燃】tag', detail:'连携积木：+易燃 与 火花 组合 = 燃烧（本命学派 ×2.4，异学派被压制）', apply:p=>{} },
+  {id:'toxin', name:'毒雾罐', emoji:'☣️', tags:['剧毒'], repeatable:false, desc:'获得【剧毒】tag', detail:'连携积木：+剧毒 与 连锁 组合 = 瘟疫（本命学派 ×2.4，异学派被压制）', apply:p=>{} },
   {id:'chain', name:'连锁线圈', emoji:'🔗', tags:['连锁'], repeatable:false, desc:'获得【连锁】tag', detail:'连携积木：+连锁 与 剧毒 组合 = 瘟疫', apply:p=>{} },
+  {id:'guard', name:'铁盾残骸', emoji:'🛡️', tags:['护盾'], repeatable:false, desc:'获得【护盾】tag', detail:'连携积木：+护盾 与 重击 组合 = 反震（本命学派 ×2.4，异学派被压制）', apply:p=>{} },
   {id:'aoe', name:'爆炸桶', emoji:'💥', tags:['火花','重击'], repeatable:true, desc:'命中产生爆炸', detail:'子弹命中时范围 +30，额外炸伤周围敌人', apply:p=>{ p.aoe+=30; }},
   {id:'hp', name:'铁皮罐头', emoji:'🥫', tags:['护盾'], repeatable:true, desc:'最大生命 +30 并回满', detail:'血上限 +30 且立刻回满，残血救命', apply:p=>{ p.maxhp+=30; p.hp=p.maxhp; }},
   {id:'leech', name:'回收胃袋', emoji:'🩸', tags:['剧毒'], repeatable:true, desc:'每击杀回血 +2', detail:'每次击杀自动回 2 血，续航神器', apply:p=>{ p.lifesteal+=2; }},
@@ -523,16 +525,48 @@ function activeTags(){
   return set;
 }
 // 连携配方：单一数据源，游戏逻辑（recombo）与抽卡图例（openDraft）共用，杜绝数值漂移
+// 三大互斥学派：每局随机定"命运流派"，本学派连携倍率放大、异学派连携压制 → 逼玩家"一条路走到黑"
+const SCHOOLS=[
+  {id:'burn',   name:'燃烧', emoji:'🔥', tags:['火花','易燃'], AMP:2.4},
+  {id:'plague', name:'瘟疫', emoji:'☣️', tags:['剧毒','连锁'], AMP:2.4},
+  {id:'heavy',  name:'重击', emoji:'🔨', tags:['重击','护盾'], AMP:2.4},
+];
 const SYN_PAIRS=[
-  {a:'火花',b:'易燃',label:'燃烧',mult:2.0,fx:'',emoji:'🔥'},
-  {a:'剧毒',b:'连锁',label:'瘟疫',mult:1.8,fx:'+穿透1',emoji:'☣️'},
-  {a:'重击',b:'护盾',label:'反震',mult:1.6,fx:'+穿透1',emoji:'🔨'},
-  {a:'疾速',b:'火花',label:'过载',mult:1.5,fx:'攻速×1.3',emoji:'💨'},
+  {a:'火花',b:'易燃',label:'燃烧',mult:1.9,fx:'',emoji:'🔥', school:'burn'},
+  {a:'剧毒',b:'连锁',label:'瘟疫',mult:1.9,fx:'+穿透1',emoji:'☣️', school:'plague'},
+  {a:'重击',b:'护盾',label:'反震',mult:1.9,fx:'+穿透1',emoji:'🔨', school:'heavy'},
+  {a:'疾速',b:'火花',label:'过载',mult:1.5,fx:'攻速×1.3',emoji:'💨', school:null}, // 跨学派：永不放大也不压制（通用副连携）
 ];
 const TAG_GLOBAL_BONUS=0.15; // 每多 1 个 tag，全局伤害额外 +15%
+const SCHOOL_SUPPRESS=0.35;   // 异学派连携倍率压制（互斥核心：别想两头通吃）
+// 一张卡归属哪个学派：任一 tag 命中即算（用于抽卡池偏向）
+function cardSchool(c){
+  for(const sc of SCHOOLS){ if(c.tags.some(t=>sc.tags.includes(t))) return sc.id; }
+  return null; // 中立卡（磁力/疾速等通用件）
+}
+// 偏向命运流派的抽卡：3 选里至少 2 张来自本学派核心卡，制造 build 分叉
+function rollDraft(pool){
+  if(!G.school){ const t=pool.slice(),o=[]; while(o.length<3&&t.length)o.push(t.splice(Math.floor(Math.random()*t.length),1)[0]); return o; }
+  const pref=pool.filter(c=>cardSchool(c)===G.school);
+  const oth =pool.filter(c=>cardSchool(c)!==G.school);
+  const out=[]; const pt=pref.slice();
+  while(out.length<2 && pt.length) out.push(pt.splice(Math.floor(Math.random()*pt.length),1)[0]);
+  const ot=oth.slice();
+  while(out.length<3 && (ot.length||pool.length)){ if(ot.length) out.push(ot.splice(Math.floor(Math.random()*ot.length),1)[0]); else { const t=pool.slice().filter(c=>!out.includes(c)); if(!t.length)break; out.push(t.splice(Math.floor(Math.random()*t.length),1)[0]); } }
+  return out;
+}
 function recombo(){
   const tags=activeTags(); const s=G.player; let m=1; let extraPierce=0; let extraRate=1;
-  for(const p of SYN_PAIRS){ if(tags.has(p.a)&&tags.has(p.b)){ m*=p.mult; if(p.fx==='+穿透1') extraPierce+=1; if(p.label==='过载') extraRate*=1.3; } }
+  for(const p of SYN_PAIRS){
+    if(tags.has(p.a)&&tags.has(p.b)){
+      let mm=p.mult;
+      if(p.school===null){ /* 跨学派：原样 */ }
+      else if(G.school===p.school) mm*=SCHOOLS.find(x=>x.id===p.school).AMP; // 本学派放大
+      else mm*=SCHOOL_SUPPRESS; // 异学派压制
+      m*=mm;
+      if(p.fx==='+穿透1') extraPierce+=1; if(p.label==='过载') extraRate*=1.3;
+    }
+  }
   m *= 1 + TAG_GLOBAL_BONUS*tags.size;
   s.comboMult=m; s._extraPierce=extraPierce; s._extraRate=extraRate;
   return m;
@@ -851,8 +885,7 @@ function openDraft(){
   phase=PHASE.DRAFT; sLevel();
   const avail=CARDS.filter(c=> c.repeatable || !G.cardLevels[c.id]);
   const pool=avail.length>=3?avail:CARDS.slice();
-  const picks=[]; const tmp=pool.slice();
-  while(picks.length<3 && tmp.length){ const i=Math.floor(Math.random()*tmp.length); picks.push(tmp.splice(i,1)[0]); }
+  const picks=rollDraft(pool);
   // 动态刷新连携图例（与 recombo 共用 SYN_PAIRS，永不漂移）
   const tags=activeTags();
   let leg=`<div class="syn-title">🔗 连携配方（两个 tag 同时存在 → 触发伤害乘数）</div>`;
@@ -862,6 +895,8 @@ function openDraft(){
   }
   leg+=`<div class="syn-row syn-note">当前已激活 tag ${tags.size} 个 · 连携 ×${G.player.comboMult.toFixed(2)} · 每多 1 个 tag 全局伤害额外 +${Math.round(TAG_GLOBAL_BONUS*100)}%。火花/易燃/剧毒/连锁 是凑连携的「积木」。</div>`;
   leg+=`<div class="syn-row syn-note">⚠️ 抽到的卡（含武器卡）只在本局有效，死了清空；想永久保留某把武器，去首页「🗑️ 仓库」花垃圾币买。</div>`;
+  const sc=SCHOOLS.find(x=>x.id===G.school);
+  leg+=`<div class="syn-row syn-note">🎯 本局<b>命运流派：${sc?sc.emoji+sc.name:'—'}</b> — 抽卡偏向它，异学派连携被压制（×${SCHOOL_SUPPRESS}），专精一条路才最炸。</div>`;
   document.getElementById('synLegend').innerHTML=leg;
   // 渲染抽卡：每张卡显示「选后连携」预览 + 连携积木标
   const cur=G.player.comboMult;
@@ -966,6 +1001,7 @@ function updHud(){
   document.getElementById('hStr').textContent=G.streak;
   document.getElementById('hRev').textContent=G.revives||0;
   const hb=document.getElementById('hBuild'); if(hb) hb.textContent=buildIdentity();
+  const hs=document.getElementById('hSchool'); if(hs){ const sc=SCHOOLS.find(x=>x.id===G.school); hs.textContent = sc? ('🎯 '+sc.emoji+sc.name) : '🎯 命运'; }
   // 连携里程碑：每叠高一档就炸一下，强化"越叠越爽"的成瘾反馈
   if(phase===PHASE.PLAY){
     const cm=G.player.comboMult;
@@ -1005,6 +1041,7 @@ function startLevel(idx){
   const p=G.player; p.hp=Math.min(p.maxhp,p.hp+30);
   if(G.levelDef.boss) spawnBoss();
   phase=PHASE.PLAY;
+  if(idx===0){ const sc=SCHOOLS.find(x=>x.id===G.school); if(sc) floatText(p.x,p.y-50,'🎯 命运流派：'+sc.emoji+sc.name,'#ffd166',30); }
   ['start','gameover','shop','draft','levelClear','win'].forEach(id=>document.getElementById(id).classList.add('hidden'));
   document.getElementById('hud').classList.remove('hidden');
   showBanner(G.levelDef.name, G.levelDef.boss?'目标：击败垃圾龙 🐉':'目标：撑过 '+G.levelDef.dur+' 秒');
